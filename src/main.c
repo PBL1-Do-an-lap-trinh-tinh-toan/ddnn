@@ -1,4 +1,5 @@
-#include "raylib.h"
+#include <raylib/raylib.h>
+#include <graph.h>
 
 const int screenWidth = 800;
 const int screenHeight = 450;
