@@ -1,3 +1,4 @@
+.cache
 app
 app.exe
 compile_commands.json
