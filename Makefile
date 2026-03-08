@@ -1,6 +1,6 @@
 CXX = gcc
 
-SRC = src/main.c
+SRC = src/main.c src/graph.c src/io.c
 INCLUDE = include
 TARGET = app
 
