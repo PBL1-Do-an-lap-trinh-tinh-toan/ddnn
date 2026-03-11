@@ -38,21 +38,21 @@ int main(void) {
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
 
+    const float TARGET_DISTANCE = 200;
+    const float SPRING_STIFFNESS = 0.7;
+    const float COULOMB_CONSTANT = 0.121 * SPRING_STIFFNESS * TARGET_DISTANCE * TARGET_DISTANCE * TARGET_DISTANCE;
+
     SetTargetFPS(60);
 
     while(!WindowShouldClose()) {
         BeginDrawing();
 
-        float delta_time = GetFrameTime();
-
-        const float TARGET_DISTANCE = 200;
-        const float RESTITUTION = 0.0f;
-        const float SPRING_STIFFNESS = 0.7;
-        const float COULOMB_CONSTANT = 0.121 * SPRING_STIFFNESS * TARGET_DISTANCE * TARGET_DISTANCE * TARGET_DISTANCE;
+        float deltaTime = Clamp(GetFrameTime(), 0.001, 0.5);
 
         // apply physics
         for(unsigned i = 0; i < graph->vertex_count; i++) {
             Vertex *vert1 = graph->vertices[i];
+
             // spring force
             for(unsigned j = 0; j < vert1->adjacent_count; j++) {
                 Vertex *vert2 = vert1->adjacents[j]->target;
@@ -69,8 +69,8 @@ int main(void) {
                 force.x *= forceMag;
                 force.y *= forceMag;
 
-                ApplyForce(&bodies[id1], force, delta_time);
-                ApplyForce(&bodies[id2], (Vector2){ -force.x, -force.y }, delta_time);
+                ApplyForce(&bodies[id1], force, deltaTime);
+                ApplyForce(&bodies[id2], (Vector2){ -force.x, -force.y }, deltaTime);
             }
 
             // coulomb force
@@ -84,21 +84,34 @@ int main(void) {
                 force.x *= forceMag;
                 force.y *= forceMag;
 
-                ApplyForce(&bodies[i], force, delta_time);
-                ApplyForce(&bodies[j], (Vector2){ -force.x, -force.y }, delta_time);
+                ApplyForce(&bodies[i], force, deltaTime);
+                ApplyForce(&bodies[j], (Vector2){ -force.x, -force.y }, deltaTime);
             }
+
+            // avoid drifting
+            Vector2 anchorForce = vert1->position;
+            anchorForce.x *= -1.3;
+            anchorForce.y *= -1.3;
+            ApplyForce(
+                &bodies[i],
+                anchorForce,
+                deltaTime
+            );
         }
 
         for(unsigned i = 0; i < graph->vertex_count; i++) {
+            if(isnan(bodies[i].velocity.x) || isnan(bodies[i].velocity.y)) {
+                bodies[i].velocity.x = 0;
+                bodies[i].velocity.y = 0;
+            }
             bodies[i].velocity.x *= 0.98;
             bodies[i].velocity.y *= 0.98;
-            Inertia(&bodies[i], delta_time);
-        }
-
-        for(unsigned i = 0; i < graph->vertex_count; i++) {
-            for(unsigned j = i + 1; j < graph->vertex_count; j++) {
-                ResolveCollision(&bodies[i], &bodies[j], RESTITUTION);
-            }
+            bodies[i].velocity = Vector2Clamp(
+                bodies[i].velocity,
+                (Vector2){ -25, -25 },
+                (Vector2){ 25, 25 }
+            );
+            Inertia(&bodies[i], deltaTime);
         }
 
         ClearBackground(RAYWHITE);

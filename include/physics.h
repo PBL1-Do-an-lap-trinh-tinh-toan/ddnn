@@ -17,8 +17,4 @@ void ApplyForce(Body *body, Vector2 force, double duration);
 
 void Inertia(Body *body, double delta_time);
 
-int CollideWith(Body *a, Body *b);
-
-void ResolveCollision(Body *a, Body *b, const double restitution);
-
 #endif

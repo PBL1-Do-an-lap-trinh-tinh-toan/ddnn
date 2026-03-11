@@ -35,6 +35,10 @@ void DrawEdge(Vertex *start_vert, Edge *edge, bool selected) {
         5,
         ORANGE
     );
+
+    Vector2 midPoint = Vector2Add(start_vert->position, edge->target->position);
+    midPoint.x /= 2.0;
+    midPoint.y /= 2.0;
 }
 
 void DrawGraph(Graph *graph) {
