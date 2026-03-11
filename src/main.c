@@ -1,6 +1,8 @@
+#include "raylib/raymath.h"
 #include <raylib/raylib.h>
 #include <gui_extras.h>
 #include <graph.h>
+#include <physics.h>
 
 #define RAYGUI_IMPLEMENTATION
 #include <raylib/raygui.h>
@@ -19,10 +21,14 @@ int main(void) {
     make_edge(v1, v3, 5);
     make_edge(v2, v0, 2);
 
-    v0->position = (Vector2){ 0, 0 };
-    v1->position = (Vector2){ 150, 0 };
-    v2->position = (Vector2){ 0, 130 };
-    v3->position = (Vector2){ 100, 100 };
+    Body bodies[4];
+    for(unsigned i = 0; i < graph->vertex_count; i++) {
+        Vertex *vert = graph->vertices[i];
+        BodyInit(bodies + i, &vert->position);
+        
+        vert->position.x = 67.8 * i * cos(i * 0.57);
+        vert->position.y = 67.8 * i * sin(i * 0.57);
+    }
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "ddnn");
 
@@ -37,6 +43,64 @@ int main(void) {
     while(!WindowShouldClose()) {
         BeginDrawing();
 
+        float delta_time = GetFrameTime();
+
+        const float TARGET_DISTANCE = 200;
+        const float RESTITUTION = 0.0f;
+        const float SPRING_STIFFNESS = 0.7;
+        const float COULOMB_CONSTANT = 0.121 * SPRING_STIFFNESS * TARGET_DISTANCE * TARGET_DISTANCE * TARGET_DISTANCE;
+
+        // apply physics
+        for(unsigned i = 0; i < graph->vertex_count; i++) {
+            Vertex *vert1 = graph->vertices[i];
+            // spring force
+            for(unsigned j = 0; j < vert1->adjacent_count; j++) {
+                Vertex *vert2 = vert1->adjacents[j]->target;
+
+                unsigned id1 = i;
+                unsigned id2 = vert2 - graph->vertices[0];
+
+                Vector2 p1 = *bodies[id1].position;
+                Vector2 p2 = *bodies[id2].position;
+                Vector2 dir = Vector2Subtract(p1, p2);
+
+                float forceMag = SPRING_STIFFNESS * (TARGET_DISTANCE - Vector2Length(dir));
+                Vector2 force = Vector2Normalize(dir);
+                force.x *= forceMag;
+                force.y *= forceMag;
+
+                ApplyForce(&bodies[id1], force, delta_time);
+                ApplyForce(&bodies[id2], (Vector2){ -force.x, -force.y }, delta_time);
+            }
+
+            // coulomb force
+            for(unsigned j = i + 1; j < graph->vertex_count; j++) {
+                Vector2 p1 = *bodies[i].position;
+                Vector2 p2 = *bodies[j].position;
+                Vector2 dir = Vector2Subtract(p1, p2);
+
+                float forceMag = COULOMB_CONSTANT / Vector2LengthSqr(dir);
+                Vector2 force = Vector2Normalize(dir);
+                force.x *= forceMag;
+                force.y *= forceMag;
+
+                ApplyForce(&bodies[i], force, delta_time);
+                ApplyForce(&bodies[j], (Vector2){ -force.x, -force.y }, delta_time);
+            }
+        }
+
+        for(unsigned i = 0; i < graph->vertex_count; i++) {
+            bodies[i].velocity.x *= 0.98;
+            bodies[i].velocity.y *= 0.98;
+            Inertia(&bodies[i], delta_time);
+        }
+
+        for(unsigned i = 0; i < graph->vertex_count; i++) {
+            for(unsigned j = i + 1; j < graph->vertex_count; j++) {
+                ResolveCollision(&bodies[i], &bodies[j], RESTITUTION);
+            }
+        }
+
         ClearBackground(RAYWHITE);
 
         if(IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
@@ -47,9 +111,9 @@ int main(void) {
         }
 
         float mouse_wheel = GetMouseWheelMove();
-        if(mouse_wheel > 0) {
+        if(mouse_wheel > 0 && camera.zoom < 3) {
             camera.zoom *= 1.2;
-        } else if (mouse_wheel < 0) {
+        } else if (mouse_wheel < 0 && camera.zoom > 0.1) {
             camera.zoom /= 1.2;
         }
 

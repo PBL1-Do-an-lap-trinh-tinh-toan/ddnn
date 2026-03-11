@@ -1,6 +1,12 @@
 #include "raylib/raymath.h"
 #include <physics.h>
 
+void BodyInit(Body *body, Vector2 *pos_vec) {
+    body->position = pos_vec;
+    body->velocity = Vector2Zero();
+    body->mass = 1.0;
+}
+
 void ApplyForce(Body *body, Vector2 force, double duration) {
     if(body->mass == INFINITY) return;
 
@@ -53,12 +59,12 @@ void ResolveCollision(Body *a, Body *b, const double restitution) {
     float penetration_depth = radius_sum - sqrt(distance_squared);
     Vector2 correction = (Vector2){
         normal.x * (penetration_depth / (1.0f / a->mass + 1.0f / b->mass)) * 1.0f,
-        normal.x * (penetration_depth / (1.0f / a->mass + 1.0f / b->mass)) * 1.0f
+        normal.y * (penetration_depth / (1.0f / a->mass + 1.0f / b->mass)) * 1.0f
     };
     if(a->mass != INFINITY) {
         *a->position = Vector2Subtract(*a->position, (Vector2){ correction.x / a->mass, correction.y / a->mass });
     }
     if(b->mass != INFINITY) {
-        *b->position = Vector2Subtract(*b->position, (Vector2){ correction.x / b->mass, correction.y / b->mass });
+        *b->position = Vector2Add(*b->position, (Vector2){ correction.x / b->mass, correction.y / b->mass });
     }
 }

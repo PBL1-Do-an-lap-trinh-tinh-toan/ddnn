@@ -11,6 +11,8 @@ typedef struct {
     float mass; // kilogram
 } Body;
 
+void BodyInit(Body *body, Vector2 *pos_vec);
+
 void ApplyForce(Body *body, Vector2 force, double duration);
 
 void Inertia(Body *body, double delta_time);
