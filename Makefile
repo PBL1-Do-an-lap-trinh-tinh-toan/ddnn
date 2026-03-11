@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Iinclude -Wall
+CFLAGS = -Iinclude -Wall -g
 LDFLAGS_COMMON = -lraylib
 
 ifeq ($(OS),Windows_NT)
@@ -12,7 +12,7 @@ else
     CLEAN_CMD = rm -f $(TARGET) $(TEST_BINS)
 endif
 
-SRC = src/graph.c src/io.c src/gui_extras.c src/physics.c
+SRC = src/graph.c src/io.c src/physics.c src/gui_interface.c
 TEST_FILES = $(wildcard test/*.c)
 TEST_BINS = $(TEST_FILES:test/%.c=%$(EXT))
 TARGET = app$(EXT)
