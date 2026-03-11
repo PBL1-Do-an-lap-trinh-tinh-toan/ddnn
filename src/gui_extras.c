@@ -1,3 +1,4 @@
+#include "raylib/raylib.h"
 #include <gui_extras.h>
 #include <raylib/raygui.h>
 
@@ -13,7 +14,7 @@ void GuiOffsettedGrid(Camera2D camera, float spacing) {
     int startY = (int)floorf(topLeft.y / spacing);
     int endY = (int)ceilf(bottomRight.y / spacing);
 
-    Color color = GetColor(GuiGetStyle(DEFAULT, LINE_COLOR));
+    Color color = LIGHTGRAY;
     for (int x = startX; x <= endX; x++) {
         DrawLine(x * spacing, startY * spacing, x * spacing, endY * spacing, color);
     }
@@ -32,8 +33,12 @@ void DrawEdge(Vertex *start_vert, Edge *edge, bool selected) {
         start_vert->position,
         edge->target->position,
         5,
-        GetColor(GuiGetStyle(DEFAULT, LINE_COLOR))
+        ORANGE
     );
+
+    Vector2 midPoint = Vector2Add(start_vert->position, edge->target->position);
+    midPoint.x /= 2.0;
+    midPoint.y /= 2.0;
 }
 
 void DrawGraph(Graph *graph) {

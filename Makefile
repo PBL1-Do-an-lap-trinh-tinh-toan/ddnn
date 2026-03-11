@@ -12,7 +12,7 @@ else
     CLEAN_CMD = rm -f $(TARGET) $(TEST_BINS)
 endif
 
-SRC = src/graph.c src/io.c src/gui_extras.c
+SRC = src/graph.c src/io.c src/gui_extras.c src/physics.c
 TEST_FILES = $(wildcard test/*.c)
 TEST_BINS = $(TEST_FILES:test/%.c=%$(EXT))
 TARGET = app$(EXT)
