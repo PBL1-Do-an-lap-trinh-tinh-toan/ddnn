@@ -12,10 +12,16 @@ typedef struct {
     Vertex *startVertex;
     Vertex *endVertex;
     Vertex *selectedVertex;
+    Vertex *draggingVertex;
 
     Body *bodies;
     bool physicsEnabled;
 
+    float anchorForceMag;
+    float velocityDamping;
+    float springLength;
+    float springStiffness;
+    float coulombConstant;
     bool physsimButton;
     char statusBar[128];
 

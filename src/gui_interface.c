@@ -10,10 +10,6 @@
 #include <constants.h>
 #include <string.h>
 
-const float TARGET_DISTANCE = 500;
-const float SPRING_STIFFNESS = 0.7;
-const float COULOMB_CONSTANT = 0.121 * SPRING_STIFFNESS * TARGET_DISTANCE * TARGET_DISTANCE * TARGET_DISTANCE;
-
 static void GuiOffsettedGrid(Camera2D camera, float spacing) {
     Vector2 topLeft = GetScreenToWorld2D((Vector2){0, 0}, camera);
     Vector2 bottomRight = GetScreenToWorld2D((Vector2){CANVAS_WIDTH, CANVAS_HEIGHT}, camera);
@@ -33,27 +29,17 @@ static void GuiOffsettedGrid(Camera2D camera, float spacing) {
     }
 }
 
-static void DrawVertex(Vertex *vert, unsigned id, bool selected) {
-    Color color = BLUE;
-    if(selected) {
-        color = RED;
-    }
-
+static void DrawVertex(Vertex *vert, Color color) {
     DrawCircle(vert->position.x, vert->position.y, 20, color);
-    const char *text = TextFormat("%d", id);
+    const char *text = TextFormat("%d", vert->id);
     Vector2 textOrigin = MeasureTextEx(GetFontDefault(), text, 20, 2);
     textOrigin.x /= -2.0;
     textOrigin.y /= -2.0;
     textOrigin = Vector2Add(textOrigin, vert->position);
-    DrawText(TextFormat("%d", id), textOrigin.x, textOrigin.y, 20, RAYWHITE);
+    DrawText(TextFormat("%d", vert->id), textOrigin.x, textOrigin.y, 20, RAYWHITE);
 }
 
-static void DrawEdge(Vertex *start_vert, Edge *edge, bool selected) {
-    Color color = ORANGE;
-    if(selected) {
-        color = RED;
-    }
-
+static void DrawEdge(Vertex *start_vert, Edge *edge, Color color) {
     DrawLineEx(
         start_vert->position,
         edge->target->position,
@@ -123,14 +109,50 @@ static void DrawGraph(GUIState *state) {
     for(unsigned i = 0; i < graph->vertex_count; i++) {
         Vertex *vert = graph->vertices[i];
         for(unsigned j = 0; j < vert->adjacent_count; j++)
-            DrawEdge(vert, vert->adjacents[j], 0);
+            DrawEdge(vert, vert->adjacents[j], ORANGE);
     }
 
     for(unsigned i = 0; i < graph->vertex_count; i++) {
         Vertex *vert = graph->vertices[i];
-        bool selected = (vert == state->startVertex) || (vert == state->endVertex);
-        DrawVertex(vert, i, selected);
+        DrawVertex(vert, BLUE);
     }
+
+    if(state->startVertex)
+        DrawVertex(state->startVertex, RED);
+
+    if(state->endVertex)
+        DrawVertex(state->endVertex, MAROON);
+}
+
+static Graph *RandomGraph(unsigned seed) {
+    SetRandomSeed(seed);
+
+    unsigned vertexCount = GetRandomValue(4, 16);
+    Graph *graph = make_graph(vertexCount);
+    for(unsigned i = 0; i < vertexCount; i++) {
+        add_vertex(graph);
+    }
+
+    for(unsigned i = 1; i < vertexCount; i++) {
+        unsigned randomPrevious = GetRandomValue(0, i - 1);
+        make_edge(
+            graph->vertices[i], 
+            graph->vertices[randomPrevious], 
+            GetRandomValue(1, 20)
+        );
+    }
+
+    unsigned extraEdges = GetRandomValue(1, vertexCount - 1); 
+    for(unsigned i = 0; i < extraEdges; i++) {
+        unsigned u = GetRandomValue(0, vertexCount - 1);
+        unsigned v = GetRandomValue(0, vertexCount - 1);
+
+        if(u != v) {
+            make_edge(graph->vertices[u], graph->vertices[v], GetRandomValue(1, 20));
+        }
+    }
+
+    return graph;
 }
 
 void GUIInit(GUIState *state, const char *appName) {
@@ -141,6 +163,7 @@ void GUIInit(GUIState *state, const char *appName) {
     state->startVertex = NULL;
     state->endVertex = NULL;
     state->selectedVertex = NULL;
+    state->draggingVertex = NULL;
 
     state->bodies = NULL;
 
@@ -150,6 +173,12 @@ void GUIInit(GUIState *state, const char *appName) {
     state->camera.rotation = 0.0f;
     state->camera.zoom = 1.0f;
 
+    state->anchorForceMag = 0.3;
+    state->velocityDamping = 0.99;
+    state->springLength = 200;
+    state->springStiffness = 0.7;
+    state->coulombConstant = 0.121 * state->springStiffness * state->springLength * state->springLength * state->springLength;
+
     state->physicsEnabled = true;
 
     strcpy(state->statusBar, "ddnn ver 0.1.0");
@@ -158,15 +187,20 @@ void GUIInit(GUIState *state, const char *appName) {
 bool GUILoadGraph(GUIState *state, Graph *graph) {
     state->graph = graph;
     state->bodies = (Body*)malloc(sizeof(Body) * graph->max_vertex_count);
-    if(!state->bodies) return 0;
+    if(!state->bodies) {
+        strcpy(state->statusBar, "Tai do thi khong thanh cong");
+        return 0;
+    }
 
     for(unsigned i = 0; i < graph->vertex_count; i++) {
         Vertex *vert = graph->vertices[i];
         BodyInit(state->bodies + i, &vert->position);
         
-        vert->position.x = 67.8 * i * cos(i * 0.57);
-        vert->position.y = 67.8 * i * sin(i * 0.57);
+        vert->position.x = 67.8 * i * cos(i * 6.28 / (float)(graph->vertex_count + 1));
+        vert->position.y = 67.8 * i * sin(i * 6.28 / (float)(graph->vertex_count + 1));
     }
+
+    strcpy(state->statusBar, "Da tai do thi");
 
     return 1;
 }
@@ -179,6 +213,7 @@ void GUIUnloadGraph(GUIState *state) {
     state->startVertex = NULL;
     state->endVertex = NULL;
     state->selectedVertex = NULL;
+    state->draggingVertex = NULL;
 
     state->bodies = NULL;
 
@@ -193,16 +228,16 @@ void GUIUpdate(GUIState *state) {
         );
     }
 
-    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && state->graph) {
-        Vector2 mousePos = GetMousePosition();
-        if(
-            mousePos.x < SCREEN_WIDTH - PANEL_WIDTH
-            && mousePos.y < SCREEN_HEIGHT - STATUS_BAR_HEIGHT
-        ) {
+    Vector2 mousePos = GetMousePosition();
+    if(
+        state->graph
+        && mousePos.x < SCREEN_WIDTH - PANEL_WIDTH
+        && mousePos.y < SCREEN_HEIGHT - STATUS_BAR_HEIGHT
+    ) {
+        Vector2 worldMouse = GetScreenToWorld2D(mousePos, state->camera);
+
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             state->selectedVertex = NULL;
-
-            Vector2 worldMouse = GetScreenToWorld2D(mousePos, state->camera);
-
             for(unsigned i = 0; i < state->graph->vertex_count; i++) {
                 Vertex *vert = state->graph->vertices[i];
                 float dx = worldMouse.x - vert->position.x;
@@ -212,6 +247,24 @@ void GUIUpdate(GUIState *state) {
                     break;
                 }
             }
+        } else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+            if(state->selectedVertex) {
+                float dx = worldMouse.x - state->selectedVertex->position.x;
+                float dy = worldMouse.y - state->selectedVertex->position.y;
+                if(
+                    IsMouseButtonDown(MOUSE_LEFT_BUTTON)
+                    && (dx * dx + dy * dy) <= VERTEX_RADIUS * VERTEX_RADIUS
+                ) {
+                    state->draggingVertex = state->selectedVertex;
+                }
+            }
+        } else {
+            state->draggingVertex = NULL;
+        }
+
+        if(state->draggingVertex) {
+            state->bodies[state->draggingVertex->id].velocity = Vector2Zero();
+            state->draggingVertex->position = worldMouse;
         }
     }
 
@@ -229,9 +282,9 @@ void GUIUpdate(GUIState *state) {
                 state->bodies[i].velocity.x = 0;
                 state->bodies[i].velocity.y = 0;
             }
-            strcpy(state->statusBar, "Da tat gia lap vat ly");
+            strcpy(state->statusBar, "Da tat mo phong vat ly");
         } else {
-            strcpy(state->statusBar, "Da bat gia lap vat ly");
+            strcpy(state->statusBar, "Da bat mo phong vat ly");
         }
     }
 
@@ -252,7 +305,7 @@ void GUIUpdate(GUIState *state) {
                 Vector2 p2 = *bodies[id2].position;
                 Vector2 dir = Vector2Subtract(p1, p2);
 
-                float forceMag = SPRING_STIFFNESS * (TARGET_DISTANCE - Vector2Length(dir));
+                float forceMag = state->springStiffness * (state->springLength - Vector2Length(dir));
                 Vector2 force = Vector2Normalize(dir);
                 force.x *= forceMag;
                 force.y *= forceMag;
@@ -267,7 +320,7 @@ void GUIUpdate(GUIState *state) {
                 Vector2 p2 = *bodies[j].position;
                 Vector2 dir = Vector2Subtract(p1, p2);
 
-                float forceMag = COULOMB_CONSTANT / Vector2LengthSqr(dir);
+                float forceMag = state->coulombConstant / Vector2LengthSqr(dir);
                 Vector2 force = Vector2Normalize(dir);
                 force.x *= forceMag;
                 force.y *= forceMag;
@@ -278,8 +331,8 @@ void GUIUpdate(GUIState *state) {
 
             // avoid drifting
             Vector2 anchorForce = vert1->position;
-            anchorForce.x *= -1.3;
-            anchorForce.y *= -1.3;
+            anchorForce.x *= -state->anchorForceMag;
+            anchorForce.y *= -state->anchorForceMag;
             ApplyForce(
                 &bodies[i],
                 anchorForce,
@@ -293,13 +346,13 @@ void GUIUpdate(GUIState *state) {
                 bodies[i].velocity.y = 0;
             }
 
-            bodies[i].velocity.x *= 0.99;
-            bodies[i].velocity.y *= 0.99;
+            bodies[i].velocity.x *= state->velocityDamping;
+            bodies[i].velocity.y *= state->velocityDamping;
 
             bodies[i].velocity = Vector2Clamp(
                 bodies[i].velocity,
-                (Vector2){ -25, -25 },
-                (Vector2){ 25, 25 }
+                (Vector2){ -100, -100 },
+                (Vector2){ 100, 100 }
             );
             Inertia(&bodies[i], deltaTime);
         }
@@ -312,7 +365,8 @@ void GUIDraw(GUIState *state) {
 
     BeginMode2D(state->camera);
     GuiOffsettedGrid(state->camera, 20);
-    DrawGraph(state);
+    if(state->graph)
+        DrawGraph(state);
     EndMode2D();
 
     Rectangle panelArea = (Rectangle){
@@ -328,17 +382,49 @@ void GUIDraw(GUIState *state) {
     float itemWidth = PANEL_WIDTH - (margin * 2);
 
     if(!state->selectedVertex) {
+        GuiLine(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                3
+            },
+            "Do thi"
+        );
+        currentY += 12;
+
         if(state->graph) GuiDisable();
         GuiButton((Rectangle){ panelArea.x + margin, currentY, (itemWidth - 5) / 2, 30 }, "Tai do thi");
         GuiEnable();
         if(!state->graph) GuiDisable();
-        GuiButton((Rectangle){ panelArea.x + (itemWidth - 5) / 2 + margin * 2, currentY, (itemWidth - 5) / 2, 30 }, "Go do thi");
+        if(GuiButton((Rectangle){ panelArea.x + (itemWidth - 5) / 2 + margin * 2, currentY, (itemWidth - 5) / 2, 30 }, "Go do thi")) {
+            GUIUnloadGraph(state);
+        }
         GuiEnable();
         currentY += 35;
 
+        if(state->graph) GuiDisable();
+        if(GuiButton((Rectangle){ panelArea.x + margin, currentY, itemWidth, 30 }, "Tao do thi ngau nhien")) {
+            GUILoadGraph(state, RandomGraph((long long)GetTime()));
+        }
+        GuiEnable();
+        currentY += 35;
+
+        currentY += 15;
+        GuiLine(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                3
+            },
+            "Mo phong vat ly"
+        );
+        currentY += 12;
+
         state->physsimButton = GuiButton(
             (Rectangle){
-                SCREEN_WIDTH - PANEL_WIDTH + 5,
+                panelArea.x + margin,
                 currentY,
                 itemWidth,
                 30
@@ -346,6 +432,127 @@ void GUIDraw(GUIState *state) {
             state->physicsEnabled ? "Dung gia lap vat ly" : "Bat dau gia lap vat ly"
         );
         currentY += 35;
+
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 },
+            "Do dai lo xo"
+        );
+        currentY += 15;
+
+        GuiSlider(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                30
+            },
+            NULL, NULL,
+            &state->springLength,
+            50.0,
+            1000.0
+        );
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin * 2, currentY, itemWidth - margin, 30 },
+            TextFormat("%.1fpx", state->springLength)
+        );
+        currentY += 35;
+
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 },
+            "He so lo xo"
+        );
+        currentY += 15;
+
+        GuiSlider(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                30
+            },
+            NULL, NULL,
+            &state->springStiffness,
+            0.01,
+            2.0
+        );
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin * 2, currentY, itemWidth - margin, 30 },
+            TextFormat("%.3f", state->springStiffness)
+        );
+        currentY += 35;
+
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 },
+            "He so luc day"
+        );
+        currentY += 15;
+
+        GuiSlider(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                30
+            },
+            NULL, NULL,
+            &state->coulombConstant,
+            100000.0,
+            3000000.0
+        );
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin * 2, currentY, itemWidth - margin, 30 },
+            TextFormat("%f", state->coulombConstant)
+        );
+        currentY += 35;
+
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 },
+            "He so giam toc"
+        );
+        currentY += 15;
+
+        GuiSlider(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                30
+            },
+            NULL, NULL,
+            &state->velocityDamping,
+            0.8,
+            1.0
+        );
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin * 2, currentY, itemWidth - margin, 30 },
+            TextFormat("%.3f", state->velocityDamping)
+        );
+        currentY += 35;
+
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 },
+            "Do lon luc neo"
+        );
+        currentY += 15;
+
+        GuiSlider(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                30
+            },
+            NULL, NULL,
+            &state->anchorForceMag,
+            0.0,
+            2.0
+        );
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin * 2, currentY, itemWidth - margin, 30 },
+            TextFormat("%.3f", state->anchorForceMag)
+        );
+        currentY += 35;
+
 
         // if(state->startVertex && state->endVertex) {
         //
@@ -374,10 +581,30 @@ void GUIDraw(GUIState *state) {
         GuiEnable();
         currentY += 25;
 
-        GuiButton((Rectangle){ panelArea.x + margin, currentY, itemWidth, 30 }, "Dat lam diem bat dau");
+        if(GuiButton((Rectangle){ panelArea.x + margin, currentY, itemWidth, 30 }, vert != state->startVertex ? "Chon lam diem bat dau" : "Bo chon lam diem bat dau")) {
+            if(state->startVertex != vert) {
+                state->startVertex = vert;
+                if(state->endVertex == vert)
+                    state->endVertex = NULL;
+                strcpy(state->statusBar, TextFormat("Da chon dinh %d lam dinh bat dau", vert->id));
+            } else {
+                state->startVertex = NULL;
+                strcpy(state->statusBar, TextFormat("Da bo chon dinh %d lam dinh bat dau", vert->id));
+            }
+        }
         currentY += 35;
 
-        GuiButton((Rectangle){ panelArea.x + margin, currentY, itemWidth, 30 }, "Dat lam diem ket thuc");
+        if(GuiButton((Rectangle){ panelArea.x + margin, currentY, itemWidth, 30 }, vert != state->endVertex ? "Chon lam diem ket thuc" : "Bo chon lam diem ket thuc")) {
+            if(state->endVertex != vert) {
+                state->endVertex = vert;
+                if(state->startVertex == vert)
+                    state->startVertex = NULL;
+                strcpy(state->statusBar, TextFormat("Da chon dinh %d lam dinh ket thuc", vert->id));
+            } else {
+                state->endVertex = NULL;
+                strcpy(state->statusBar, TextFormat("Da bo chon dinh %d lam dinh ket thuc", vert->id));
+            }
+        }
         currentY += 35;
 
         GuiLabel((Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 }, "Dinh ke");
