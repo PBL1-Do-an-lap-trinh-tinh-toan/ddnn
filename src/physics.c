@@ -5,7 +5,7 @@
 void BodyInit(Body *body, Vector2 *pos_vec) {
     body->position = pos_vec;
     body->velocity = Vector2Zero();
-    body->mass = 1.0;
+    body->mass = 0.1;
 }
 
 void ApplyForce(Body *body, Vector2 force, double duration) {

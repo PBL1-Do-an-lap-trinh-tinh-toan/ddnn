@@ -3,7 +3,7 @@
 GUIState state;
 
 int main(void) {
-    GUIInit(&state, "ddnn");
+    GUIInit(&state, "ddnn", "access/IBMPlexMono-Regular.ttf");
 
     while(!WindowShouldClose()) {
         GUIUpdate(&state);

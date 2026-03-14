@@ -17,17 +17,22 @@ typedef struct {
     Body *bodies;
     bool physicsEnabled;
 
-    float anchorForceMag;
-    float velocityDamping;
+
     float springLength;
     float springStiffness;
     float coulombConstant;
+
     bool physsimButton;
+    bool jiggleButton;
+    bool startVertButton;
+    bool endVertButton;
     char statusBar[128];
+
+    Font font;
 
 } GUIState;
 
-void GUIInit(GUIState *state, const char *appName);
+void GUIInit(GUIState *state, const char *appName, const char *fontFile);
 
 bool GUILoadGraph(GUIState *state, Graph *graph);
 
