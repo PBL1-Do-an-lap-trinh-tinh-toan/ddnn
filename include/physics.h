@@ -3,8 +3,6 @@
 
 #include <raylib/raymath.h>
 
-#define VERTEX_RADIUS 20
-
 typedef struct {
     Vector2 *position; // meter
     Vector2 velocity; // meter/second
