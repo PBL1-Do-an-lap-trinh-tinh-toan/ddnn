@@ -9,6 +9,13 @@
 #include <constants.h>
 #include <string.h>
 
+// TODO: move this to graph.c
+Edge *getEdge(Vertex *a, Vertex *b) {
+    for(unsigned i = 0; i < a->adjacent_count; i++)
+        if(a->adjacents[i]->target == b) return a->adjacents[i];
+    return NULL;
+}
+
 static void GuiOffsettedGrid(Camera2D camera, float spacing) {
     Vector2 topLeft = GetScreenToWorld2D((Vector2){0, 0}, camera);
     Vector2 bottomRight = GetScreenToWorld2D((Vector2){CANVAS_WIDTH, CANVAS_HEIGHT}, camera);
@@ -143,12 +150,30 @@ static Graph *RandomGraph() {
         unsigned v = GetRandomValue(0, vertexCount - 1);
 
         if(u != v) {
-            // BUG:
-            // duplicate edge
-            int weight = GetRandomValue(1, 20);
-            make_edge(graph->vertices[u], graph->vertices[v], weight);
-            if(GetRandomValue(0, 100) < 10)
-                make_edge(graph->vertices[v], graph->vertices[u], weight);
+            Edge *edge_uv = getEdge(graph->vertices[u], graph->vertices[v]);
+            Edge *edge_vu = getEdge(graph->vertices[v], graph->vertices[u]);
+
+            if(!edge_uv) {
+                // swap
+                unsigned t = u;
+                u = v;
+                v = t;
+
+                Edge *t_edge = edge_uv;
+                edge_uv = edge_vu;
+                edge_vu = t_edge;
+            }
+
+            if(!edge_uv) {
+                if(!edge_vu) {
+                    int weight = GetRandomValue(1, 20);
+                    make_edge(graph->vertices[u], graph->vertices[v], weight);
+                    if(GetRandomValue(0, 100) < 10)
+                        make_edge(graph->vertices[v], graph->vertices[u], weight);
+                } else {
+                    make_edge(graph->vertices[u], graph->vertices[v], edge_vu->weight);
+                }
+            }
         }
     }
 
