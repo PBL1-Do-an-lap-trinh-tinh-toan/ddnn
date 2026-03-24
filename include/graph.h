@@ -1,8 +1,6 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-#include <raylib/raymath.h> /**< Vector2 */
-
 /**
  * @brief Cạnh của một đỉnh, khởi tạo khi thêm 1 đỉnh liền kể
  */
@@ -26,7 +24,10 @@ typedef struct Vertex {
      * dùng trong hàm quy hồi sau khi chạy thuật đường đi ngắn nhất */
     struct Vertex *path_prev;
 
-    Vector2 position; /**< Vị trí của đỉnh trong canvas */
+    struct Vector2 {
+        float x;
+        float y;
+    } position; /**< Vị trí của đỉnh trong canvas */
 } Vertex;
 
 typedef struct Graph {
