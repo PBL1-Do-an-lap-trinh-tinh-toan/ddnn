@@ -49,7 +49,8 @@ Vertex *add_vertex(Graph *graph) {
         return NULL;
     }
     new_vertex->path_prev = NULL;
-    new_vertex->position = Vector2Zero();
+    new_vertex->position.x = 0;
+    new_vertex->position.y = 0;
 
     graph->vertices[graph->vertex_count++] = new_vertex;
 
