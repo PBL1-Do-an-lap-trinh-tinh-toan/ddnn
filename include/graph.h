@@ -106,6 +106,6 @@ int remove_edge(Edge *edge);
  * @param[end] Đỉnh kết thúc
  * @return 1 nếu tồn tại đường đi giữa start và end, 0 nếu không có đường đi
  */
-int shortest_path(Vertex *start, Vertex *end);
+long long shortest_path(Graph *graph, Vertex *start, Vertex *end);
 
 #endif

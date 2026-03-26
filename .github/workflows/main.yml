@@ -1,0 +1,22 @@
+name: Test Dijkstra Algorithm
+
+on:
+  push:
+    # Đã thêm nhánh test1 vào đây để GitHub Actions theo dõi
+    branches: [ "main"] 
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest 
+
+    steps:
+    - name: Tai code ve may ao
+      uses: actions/checkout@v3
+
+    - name: Bien dich va Chay file test1.c
+      # Đã thêm -Iinclude vào lệnh gcc
+      run: |
+        gcc -Iinclude test/test1.c src/graph.c -o test_app
+        ./test_app
