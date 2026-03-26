@@ -24,10 +24,13 @@ typedef struct Vertex {
      * dùng trong hàm quy hồi sau khi chạy thuật đường đi ngắn nhất */
     struct Vertex *path_prev;
 
-    struct Vector2 {
-        float x;
-        float y;
-    } position; /**< Vị trí của đỉnh trong canvas */
+#ifdef RAYLIB_H
+    Vector2 position; /**< Vị trí của đỉnh trong canvas */
+#else
+    struct {
+    float x; float y;
+    } position;
+#endif
 } Vertex;
 
 typedef struct Graph {
