@@ -3,6 +3,16 @@
 #include <string.h>
 
 #define INF 999999999999999LL
+
+typedef struct {
+    Vertex *u;
+    long long dist;
+} HeapNode;
+
+HeapNode *heap = NULL;
+int heap_size = 0;
+int head_capacity = 0;
+
 Graph *make_graph(unsigned n) {
     Graph *g = (Graph*)malloc(sizeof(Graph));
     if(!g) return NULL;
@@ -146,19 +156,12 @@ Edge *find_edge(Vertex *a, Vertex *b) {
     return NULL;
 }
 
-typedef struct {
-    Vertex *u;
-    long long dist;
-} HeapNode;
-HeapNode *heap = NULL;
-int heap_size = 0;
-int head_capacity = 0;
-void swap_node(HeapNode *a, HeapNode *b) {
+void heap_swap_node(HeapNode *a, HeapNode *b) {
     HeapNode temp = *a;
     *a = *b;
     *b = temp;
 }
-void push(Vertex *u, long long dist) {
+void heap_push(Vertex *u, long long dist) {
     if(heap_size + 1 >= head_capacity){
         head_capacity = (head_capacity == 0) ? 256 : head_capacity * 2;
         HeapNode *temp = (HeapNode*)realloc(heap, head_capacity * sizeof(HeapNode));
@@ -168,12 +171,12 @@ void push(Vertex *u, long long dist) {
     heap[++heap_size] = (HeapNode){u, dist};
     int i = heap_size;
     while (i > 1 && heap[i].dist < heap[i / 2].dist) {
-        swap_node(&heap[i], &heap[i / 2]);
+        heap_swap_node(&heap[i], &heap[i / 2]);
         i /= 2;
     }
 }
 
-HeapNode pop() {
+HeapNode heap_pop() {
     HeapNode top = heap[1];
     heap[1] = heap[heap_size--];
     int i = 1;
@@ -183,16 +186,17 @@ HeapNode pop() {
             child++;
         }
         if (heap[i].dist <= heap[child].dist) break;
-        swap_node(&heap[i], &heap[child]);
+        heap_swap_node(&heap[i], &heap[child]);
         i = child;
     }
     return top;
 }
 
-int is_empty() {
+int is_heap_empty() {
     return heap_size == 0;
 }
-void free_heap() {
+
+void heap_clear() {
     if(heap != NULL){
         free(heap);
         heap = NULL;
@@ -202,30 +206,23 @@ void free_heap() {
 }
 
 long long shortest_path(Graph *graph, Vertex *start, Vertex *end) {
-    /**
-     * Lưu thông tin truy hồi ở mỗi đỉnh
-     * vd nếu tìm được đường đi là A -> B -> C
-     * thì A->path_prev = NULL
-     * B->path_prev = A
-     * C->path_prev = B
-     *
-     * nên làm bằng thuật Dijkstra
-     */
     long long *d = (long long*)malloc(graph->unique_id*sizeof(long long));
     if(!d) return -1;
     for(unsigned i = 0; i<graph->unique_id; i++) {
         d[i] = INF;
     }
-    free_heap();
+
+    heap_clear();
     d[start->id] = 0;
     start->path_prev = NULL;
-    push(start, 0);
-    while(!is_empty()){
-        HeapNode current = pop();
+    heap_push(start, 0);
+
+    while(!is_heap_empty()){
+        HeapNode current = heap_pop();
         Vertex *u = current.u;
         long long dist_u = current.dist;
         if(dist_u > d[u->id]) continue;
-        if(u == end) break; 
+        if(u == end) break;
         for(unsigned i=0; i < u->adjacent_count; i++) {
             Edge *edge = u->adjacents[i];
             Vertex *v = edge->target;
@@ -233,13 +230,14 @@ long long shortest_path(Graph *graph, Vertex *start, Vertex *end) {
             if(new_dist < d[v->id]){
                 d[v->id] = new_dist;
                 v->path_prev = u;
-                push(v, new_dist);
+                heap_push(v, new_dist);
             }
         }
     }
-long long result = d[end->id];
-free(d);
-free_heap();
-if(result == INF) result = -1;
-return result;
+
+    long long result = d[end->id];
+    free(d);
+    heap_clear();
+    if(result == INF) result = -1;
+    return result;
 }

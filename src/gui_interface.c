@@ -42,18 +42,7 @@ static void DrawVertex(Vertex *vert, Color color, Font font) {
     DrawTextEx(font, TextFormat("%d", vert->id), textOrigin, 25, 2, BLACK);
 }
 
-static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font) {
-    DrawLineEx(
-        *start_vert->position,
-        *edge->target->position,
-        EDGE_WIDTH,
-        color
-    );
-
-    Vector2 midPoint = Vector2Add(*start_vert->position, *edge->target->position);
-    midPoint.x /= 2.0;
-    midPoint.y /= 2.0;
-
+static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font, bool mutual_adjacency) {
     Vector2 dir = Vector2Subtract(*edge->target->position, *start_vert->position);
 
     Vector2 dirNormalized = Vector2Normalize(dir);
@@ -61,6 +50,13 @@ static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font) {
     float t = normal.x;
     normal.x = -normal.y * 5;
     normal.y = t * 5;
+
+    Vector2 offset = Vector2Scale(normal, 1.3f * mutual_adjacency);
+
+    Vector2 midPoint = Vector2Add(*start_vert->position, *edge->target->position);
+    midPoint.x /= 2.0;
+    midPoint.y /= 2.0;
+    midPoint = Vector2Add(midPoint, offset);
 
     Vector2 arrowTarget = Vector2Subtract(
         *edge->target->position,
@@ -70,6 +66,9 @@ static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font) {
         arrowTarget,
         (Vector2){ dirNormalized.x * 25, dirNormalized.y * 25 }
     );
+
+    arrowOrigin = Vector2Add(arrowOrigin, offset);
+    arrowTarget = Vector2Add(arrowTarget, offset);
 
     DrawLineEx(
         Vector2Add(arrowOrigin, normal),
@@ -81,6 +80,13 @@ static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font) {
     DrawLineEx(
         Vector2Add(arrowOrigin, (Vector2){ -normal.x, -normal.y }),
         arrowTarget,
+        EDGE_WIDTH,
+        color
+    );
+
+    DrawLineEx(
+        Vector2Add(*start_vert->position, offset),
+        Vector2Add(*edge->target->position, offset),
         EDGE_WIDTH,
         color
     );
@@ -101,7 +107,7 @@ static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font) {
         atan2f(dir.y, dir.x) * RAD2DEG + 180 * (dir.x < 0 ? 1 : 0),
         25,
         2,
-        GRAY
+        color
     );
 }
 
@@ -109,8 +115,29 @@ static void DrawGraph(GUIState *state) {
     Graph *graph = state->graph;
     for(unsigned i = 0; i < graph->vertex_count; i++) {
         Vertex *vert = graph->vertices[i];
-        for(unsigned j = 0; j < vert->adjacent_count; j++)
-            DrawEdge(vert, vert->adjacents[j], GRAY, state->font);
+        for(unsigned j = 0; j < vert->adjacent_count; j++) {
+            Vertex *target = vert->adjacents[j]->target;
+            bool mutual_adjacency = false;
+            mutual_adjacency = find_edge(target, vert);
+            DrawEdge(vert, vert->adjacents[j], GRAY, state->font, mutual_adjacency);
+        }
+    }
+
+    // highlight shortest path
+    if(state->startVertex && state->endVertex && (state->shortestPathResult >= 0)) {
+        Vertex *current = state->endVertex;
+        while(current != state->startVertex) {
+            bool mutual_adjacency = false;
+            mutual_adjacency = find_edge(current, current->path_prev);
+            DrawEdge(
+                current->path_prev,
+                find_edge(current->path_prev, current),
+                ORANGE,
+                state->font,
+                mutual_adjacency
+            );
+            current = current->path_prev; 
+        }
     }
 
     for(unsigned i = 0; i < graph->vertex_count; i++) {
@@ -126,52 +153,38 @@ static void DrawGraph(GUIState *state) {
 }
 
 static Graph *RandomGraph() {
-    unsigned vertexCount = GetRandomValue(4, 20);
+    unsigned vertexCount = GetRandomValue(8, 15);
     Graph *graph = make_graph(vertexCount);
+    
     for(unsigned i = 0; i < vertexCount; i++) {
         add_vertex(graph);
     }
 
     for(unsigned i = 1; i < vertexCount; i++) {
-        unsigned randomPrevious = GetRandomValue(0, i - 1);
-        make_edge(
-            graph->vertices[i], 
-            graph->vertices[randomPrevious], 
-            GetRandomValue(1, 20)
-        );
+        make_edge(graph->vertices[i - 1], graph->vertices[i], GetRandomValue(5, 15));
     }
 
-    unsigned extraEdges = GetRandomValue(1, vertexCount / 2); 
-    for(unsigned i = 0; i < extraEdges; i++) {
-        unsigned u = GetRandomValue(0, vertexCount - 1);
-        unsigned v = GetRandomValue(0, vertexCount - 1);
-
-        if(u != v) {
-            Edge *edge_uv = find_edge(graph->vertices[u], graph->vertices[v]);
-            Edge *edge_vu = find_edge(graph->vertices[v], graph->vertices[u]);
-
-            if(!edge_uv) {
-                // swap
-                unsigned t = u;
-                u = v;
-                v = t;
-
-                Edge *t_edge = edge_uv;
-                edge_uv = edge_vu;
-                edge_vu = t_edge;
-            }
-
-            if(!edge_uv) {
-                if(!edge_vu) {
-                    int weight = GetRandomValue(1, 20);
-                    make_edge(graph->vertices[u], graph->vertices[v], weight);
-                    if(GetRandomValue(0, 100) < 10)
-                        make_edge(graph->vertices[v], graph->vertices[u], weight);
-                } else {
-                    make_edge(graph->vertices[u], graph->vertices[v], edge_vu->weight);
-                }
-            }
+    for(unsigned i = 2; i < vertexCount; i++) {
+        if (GetRandomValue(1, 100) <= 50) { 
+            unsigned randomPrevious = GetRandomValue(0, i - 2); 
+            make_edge(
+                graph->vertices[randomPrevious],
+                graph->vertices[i],
+                GetRandomValue(1, 25) 
+            );
         }
+    }
+
+    unsigned numRetrograde = GetRandomValue(2, 4);
+    for(unsigned k = 0; k < numRetrograde; k++) {
+        unsigned fromIdx = GetRandomValue(3, vertexCount - 1);
+        unsigned toIdx = GetRandomValue(0, fromIdx - 2);
+
+        make_edge(
+            graph->vertices[fromIdx],
+            graph->vertices[toIdx],
+            GetRandomValue(1, 8) 
+        );
     }
 
     return graph;
@@ -204,6 +217,8 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     state->springStiffness = 0.7;
     state->coulombConstant = 1200000;
 
+    state->shortestPathResult = -1;
+
     int codepoints[1024];
     int count = 0;
     for (int i = 32; i <= 126; i++) codepoints[count++] = i;
@@ -214,7 +229,6 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     SetTextureFilter(state->font.texture, TEXTURE_FILTER_BILINEAR);
     GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
 
-    state->currentTab = TAB_FILES;
     strcpy(state->statusBar, "");
 }
 
@@ -278,19 +292,28 @@ void GUIUpdate(GUIState *state) {
             state->selectedEdge = NULL;
 
             // check edges
-            float minDistSqr = EDGE_WIDTH * EDGE_WIDTH * 9;
+            float minDistSqr = EDGE_WIDTH * EDGE_WIDTH * 4;
             for(unsigned i = 0; i < state->graph->vertex_count; i++) {
                 Vertex *vert = state->graph->vertices[i];
                 for(unsigned j = 0; j < vert->adjacent_count; j++) {
                     Edge *edge = vert->adjacents[j];
+                    Vertex *target = edge->target;
+                    bool mutualAdjacency = find_edge(target, vert) != NULL;
+
                     Vector2 edge_dir = Vector2Subtract(*edge->target->position, *vert->position);
                     float edgeLenSqr = Vector2LengthSqr(edge_dir);
                     if(edgeLenSqr < 40.0 * 40.0) continue;
 
-                    Vector2 event_dir = Vector2Subtract(worldMouse, *vert->position);
+                    Vector2 dirNormalized = Vector2Normalize(edge_dir);
+                    Vector2 normal = { -dirNormalized.y * 5, dirNormalized.x * 5 };
+                    Vector2 offset = Vector2Scale(normal, 1.3f * mutualAdjacency);
+
+                    Vector2 vertPosOffsetted = Vector2Add(*vert->position, offset);
+
+                    Vector2 event_dir = Vector2Subtract(worldMouse, vertPosOffsetted);
                     float t = Vector2DotProduct(event_dir, edge_dir) / edgeLenSqr;
                     t = Clamp(t, 0.0, 1.0);
-                    Vector2 proj = Vector2Add(*vert->position, Vector2Scale(edge_dir, t));
+                    Vector2 proj = Vector2Add(vertPosOffsetted, Vector2Scale(edge_dir, t));
                     float distance = Vector2LengthSqr(Vector2Subtract(worldMouse, proj));
 
                     if(distance < minDistSqr) {
@@ -382,12 +405,37 @@ void GUIUpdate(GUIState *state) {
         }
     }
 
+    if(state->startVertex && state->endVertex) {
+        state->shortestPathResult = shortest_path(state->graph, state->startVertex, state->endVertex);
+        if(state->shortestPathResult>= 0) {
+            strcpy(
+                state->statusBar,
+                TextFormat(
+                    "Tìm được đường đi ngắn nhất với chi phí là %lld",
+                    state->shortestPathResult
+                )
+            );
+        } else {
+            strcpy(
+                state->statusBar,
+                TextFormat(
+                    "Không tồn tại đường đi từ đỉnh %d đến đỉnh %d",
+                    state->startVertex->id,
+                    state->endVertex->id
+                )
+            );
+        }
+    }
+
     if(state->deleteEdgeRequest) {
         unsigned from_id = state->selectedEdge->origin->id;
         unsigned to_id = state->selectedEdge->target->id;
         remove_edge(state->selectedEdge);
+
         state->selectedEdge = NULL;
         state->deleteEdgeRequest = false;
+        state->shortestPathResult = -1;
+
         strcpy(state->statusBar, TextFormat("Đã xóa cạnh %u -> %u", from_id, to_id));
     }
 
@@ -400,10 +448,14 @@ void GUIUpdate(GUIState *state) {
         }
 
         // delete graph vertex
+        unsigned vert_id = vert->id;
         remove_vertex(state->graph, vert->id);
         state->selectedVertex = NULL;
         vert = NULL;
         state->deleteVertexRequest = false;
+        state->shortestPathResult = -1;
+
+        strcpy(state->statusBar, TextFormat("Đã xóa đỉnh %u", vert_id));
     }
 
     if(state->physicsEnabled) {

@@ -5,13 +5,6 @@
 #include <graph.h>
 #include <physics.h>
 
-typedef enum {
-    TAB_FILES,
-    TAB_PROPERTIES,
-    TAB_GRAPH_EDITOR,
-    TAB_PHYSICS,
-} Tab;
-
 typedef struct {
     Camera2D camera;
 
@@ -25,10 +18,11 @@ typedef struct {
     Body *bodies;
     bool physicsEnabled;
 
-
     float springLength;
     float springStiffness;
     float coulombConstant;
+
+    long long shortestPathResult;
 
     bool physsimRequest;
     bool jiggleRequest;
@@ -37,7 +31,6 @@ typedef struct {
     bool deleteVertexRequest;
     bool deleteEdgeRequest;
 
-    Tab currentTab;
     char statusBar[128];
 
     Font font;
