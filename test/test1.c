@@ -20,7 +20,7 @@ int main() {
     if (kc == -1) {
         printf("-> Khong co duong di nao tu A den D!\n");
     } else {
-        printf("-> Khoang cach ngan nhat tu A den D la: %lld (Ky vong: 6)\n", distance);
+        printf("-> Khoang cach ngan nhat tu A den D la: %lld (Ky vong: 6)\n", kc);
         printf("-> Lo trinh di nguoc tu dich ve nguon: ");
         Vertex *temp = D;
         while (temp != NULL) {
