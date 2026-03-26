@@ -1,5 +1,6 @@
 #include <graph.h>
 #include <stdlib.h>
+#include <string.h>
 
 Graph *make_graph(unsigned n) {
     Graph *g = (Graph*)malloc(sizeof(Graph));
@@ -12,6 +13,7 @@ Graph *make_graph(unsigned n) {
         free(g);
         return NULL;
     }
+    memset(g->vertices, 0, n * sizeof(Vertex*));
     g->unique_id = 0;
 
     return g;
@@ -48,11 +50,12 @@ Vertex *add_vertex(Graph *graph) {
         free(new_vertex);
         return NULL;
     }
+    memset(new_vertex->adjacents, 0, new_vertex->max_adjacent_count * sizeof(Edge*));
     new_vertex->path_prev = NULL;
-    new_vertex->position.x = 0;
-    new_vertex->position.y = 0;
 
-    graph->vertices[graph->vertex_count++] = new_vertex;
+    graph->vertices[graph->vertex_count] = new_vertex;
+    new_vertex->idx = graph->vertex_count;
+    graph->vertex_count++;
 
     return new_vertex;
 }
@@ -76,7 +79,7 @@ int remove_vertex(Graph *graph, unsigned id) {
         Vertex *vertex = graph->vertices[i];
         for(int j = vertex->adjacent_count - 1; j >= 0; j--) {
             if(vertex->adjacents[j]->target == del_vertex) {
-                remove_edge(vertex, j);
+                remove_edge(vertex->adjacents[j]);
             }
         }
     }
@@ -90,6 +93,7 @@ int remove_vertex(Graph *graph, unsigned id) {
 
     for(unsigned i = idx + 1; i < graph->vertex_count; i++) {
         graph->vertices[i - 1] = graph->vertices[i];
+        graph->vertices[i - 1]->idx = i - 1;
     }
     graph->vertex_count--;
 
@@ -111,26 +115,34 @@ Edge *make_edge(Vertex *from, Vertex *to, unsigned weight) {
     Edge *e = (Edge*)malloc(sizeof(Edge));
     if(!e) return NULL;
 
+    e->origin = from;
     e->target = to;
     e->weight = weight;
+    e->idx = from->adjacent_count;
 
     from->adjacents[from->adjacent_count++] = e;
 
     return e;
 }
 
-int remove_edge(Vertex *owner, unsigned edge_idx) {
-    if(edge_idx >= owner->adjacent_count)
-        return 0;
-
-    free(owner->adjacents[edge_idx]);
+int remove_edge(Edge *edge) {
+    unsigned edge_idx = edge->idx;
+    Vertex *owner = edge->origin;
+    free(owner->adjacents[edge->idx]);
 
     for(unsigned i = edge_idx + 1; i < owner->adjacent_count; i++) {
         owner->adjacents[i - 1] = owner->adjacents[i];
+        owner->adjacents[i - 1]->idx = i - 1;
     }
     owner->adjacent_count--;
 
     return 1;
+}
+
+Edge *find_edge(Vertex *a, Vertex *b) {
+    for(unsigned i = 0; i < a->adjacent_count; i++)
+        if(a->adjacents[i]->target == b) return a->adjacents[i];
+    return NULL;
 }
 
 int shortest_path(Vertex *start, Vertex *end) {

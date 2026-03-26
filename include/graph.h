@@ -1,12 +1,16 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
+struct Vector2;
+
 /**
  * @brief Cạnh của một đỉnh, khởi tạo khi thêm 1 đỉnh liền kể
  */
 typedef struct Edge {
-    struct Vertex *target; /**< Đích của đỉnh */
-    unsigned weight; /**< Trọng số/chi phí */
+    struct Vertex *origin; /**< Đỉnh xuất phát */
+    struct Vertex *target; /**< Đích của cạnh */
+    unsigned long long weight; /**< Trọng số/chi phí */
+    unsigned idx; /**< Chỉ số của cạnh trong mảng kề của đỉnh xuất phát */
 } Edge;
 
 
@@ -15,6 +19,7 @@ typedef struct Edge {
  */
 typedef struct Vertex {
     unsigned id; /**< Chỉ số độc nhất của mỗi đỉnh */
+    unsigned idx; /**< Chỉ số của đỉnh trong danh sách đỉnh */
 
     struct Edge **adjacents; /**< Danh sách (list) các con trỏ trỏ đến cạnh liền kể */
     unsigned adjacent_count; /**< Số lượng đỉnh liền kể */
@@ -24,13 +29,7 @@ typedef struct Vertex {
      * dùng trong hàm quy hồi sau khi chạy thuật đường đi ngắn nhất */
     struct Vertex *path_prev;
 
-#ifdef RAYLIB_H
-    Vector2 position; /**< Vị trí của đỉnh trong canvas */
-#else
-    struct {
-    float x; float y;
-    } position;
-#endif
+    struct Vector2 *position; /**< Vị trí của đỉnh trong canvas */
 } Vertex;
 
 typedef struct Graph {
@@ -78,6 +77,14 @@ int find_vertex(Graph *graph, unsigned id);
 int remove_vertex(Graph *graph, unsigned id);
 
 /**
+ * @brief Tìm 1 cạnh dựa vào đỉnh xuất phát và đinh kết thúc
+ * @param[a] Đỉnh xuất phát
+ * @param[b] Đỉnh xuất phát
+ * @return địa chỉ của cạnh nếu tìm thấy, NULL nếu không tìm thấy
+ */
+Edge *find_edge(Vertex *a, Vertex *b);
+
+/**
  * @brief Tạo cạnh có hướng nối 2 điểm
  * @param[from] Đỉnh nguồn
  * @param[to] Đỉnh đích
@@ -88,11 +95,10 @@ Edge *make_edge(Vertex *from, Vertex *to, unsigned weight);
 
 /**
  * @brief Xóa một cạnh của đỉnh gốc
- * @param[owner] Đỉnh gốc
- * @param[edge_idx] Chỉ số của cạnh
+ * @param[edge] Con trỏ đến cạnh cần xóa
  * @return 1 nếu thành công, không thì 0
  */
-int remove_edge(Vertex *owner, unsigned edge_idx);
+int remove_edge(Edge *edge);
 
 /**
  * @brief Tìm đường đi ngắn nhất, thông tin truy hồi được lưu ở mỗi đỉnh
