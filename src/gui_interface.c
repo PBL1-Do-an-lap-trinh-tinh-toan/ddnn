@@ -1,4 +1,4 @@
-#include "raylib/raylib.h"
+#include <raylib/raylib.h>
 #include <gui_interface.h>
 
 #define RAYGUI_STATIC
@@ -49,7 +49,7 @@ static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font) {
     DrawLineEx(
         start_vert->position,
         edge->target->position,
-        5,
+        EDGE_WIDTH,
         color
     );
 
@@ -77,14 +77,14 @@ static void DrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font) {
     DrawLineEx(
         Vector2Add(arrowOrigin, normal),
         arrowTarget,
-        5,
+        EDGE_WIDTH,
         color
     );
 
     DrawLineEx(
         Vector2Add(arrowOrigin, (Vector2){ -normal.x, -normal.y }),
         arrowTarget,
-        5,
+        EDGE_WIDTH,
         color
     );
 
@@ -245,6 +245,7 @@ void GUIUnloadGraph(GUIState *state) {
     state->startVertex = NULL;
     state->endVertex = NULL;
     state->selectedVertex = NULL;
+    state->selectedEdge = NULL;
     state->draggingVertex = NULL;
 
     state->bodies = NULL;
@@ -271,22 +272,48 @@ void GUIUpdate(GUIState *state) {
 
         if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             state->selectedVertex = NULL;
+            state->selectedEdge = NULL;
+
+            // check edges
+            float minDistSqr = EDGE_WIDTH * EDGE_WIDTH;
             for(unsigned i = 0; i < state->graph->vertex_count; i++) {
                 Vertex *vert = state->graph->vertices[i];
-                float dx = worldMouse.x - vert->position.x;
-                float dy = worldMouse.y - vert->position.y;
-                if((dx * dx + dy * dy) <= VERTEX_RADIUS * VERTEX_RADIUS) {
+                for(unsigned j = 0; j < vert->adjacent_count; j++) {
+                    Edge *edge = vert->adjacents[j];
+                    Vector2 edge_dir = Vector2Subtract(edge->target->position, vert->position);
+                    float edgeLenSqr = Vector2LengthSqr(edge_dir);
+                    if(edgeLenSqr < 40.0 * 40.0) continue;
+
+                    Vector2 event_dir = Vector2Subtract(worldMouse, vert->position);
+                    float t = Vector2DotProduct(event_dir, edge_dir) / edgeLenSqr;
+                    t = Clamp(t, 0.0, 1.0);
+                    Vector2 proj = Vector2Add(vert->position, Vector2Scale(edge_dir, t));
+                    float distance = Vector2LengthSqr(Vector2Subtract(worldMouse, proj));
+
+                    if(distance < minDistSqr) {
+                        state->selectedEdge = edge;
+                        state->selectedEdgeOrigin = vert;
+                        minDistSqr = distance;
+                    }
+                }
+            }
+
+            // prioritise vertices over edges
+            for(unsigned i = 0; i < state->graph->vertex_count; i++) {
+                Vertex *vert = state->graph->vertices[i];
+                Vector2 dir = Vector2Subtract(worldMouse, vert->position);
+                if(Vector2LengthSqr(dir) <= VERTEX_RADIUS * VERTEX_RADIUS) {
                     state->selectedVertex = vert;
+                    state->selectedEdge = NULL;
                     break;
                 }
             }
         } else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             if(state->selectedVertex) {
-                float dx = worldMouse.x - state->selectedVertex->position.x;
-                float dy = worldMouse.y - state->selectedVertex->position.y;
+                Vector2 dir = Vector2Subtract(worldMouse, state->selectedVertex->position);
                 if(
                     IsMouseButtonDown(MOUSE_LEFT_BUTTON)
-                    && (dx * dx + dy * dy) <= VERTEX_RADIUS * VERTEX_RADIUS
+                    && Vector2LengthSqr(dir) <= VERTEX_RADIUS * VERTEX_RADIUS
                 ) {
                     state->draggingVertex = state->selectedVertex;
                 }
@@ -321,7 +348,7 @@ void GUIUpdate(GUIState *state) {
         SetRandomSeed((unsigned)GetTime());
         for(unsigned i = 0; i < state->graph->vertex_count; i++) {
             float theta = GetRandomValue(0, 360) * DEG2RAD;
-            Vector2 dir = (Vector2){ cos(theta) * VELOCITY_CAP, sin(theta) * VELOCITY_CAP };
+            Vector2 dir = Vector2Scale((Vector2){cos(theta), sin(theta)}, VELOCITY_CAP);
             state->bodies[i].velocity.x += dir.x;
             state->bodies[i].velocity.y += dir.y;
         }
@@ -371,12 +398,10 @@ void GUIUpdate(GUIState *state) {
                 Vector2 dir = Vector2Subtract(p1, p2);
 
                 float forceMag = state->springStiffness * (state->springLength - Vector2Length(dir));
-                Vector2 force = Vector2Normalize(dir);
-                force.x *= forceMag;
-                force.y *= forceMag;
+                Vector2 force = Vector2Scale(Vector2Normalize(dir), forceMag);
 
                 ApplyForce(&bodies[id1], force, deltaTime);
-                ApplyForce(&bodies[id2], (Vector2){ -force.x, -force.y }, deltaTime);
+                ApplyForce(&bodies[id2], Vector2Scale(force, -1.0f), deltaTime);
             }
 
             // coulomb force
@@ -386,23 +411,15 @@ void GUIUpdate(GUIState *state) {
                 Vector2 dir = Vector2Subtract(p1, p2);
 
                 float forceMag = state->coulombConstant / Vector2LengthSqr(dir);
-                Vector2 force = Vector2Normalize(dir);
-                force.x *= forceMag;
-                force.y *= forceMag;
+                Vector2 force = Vector2Scale(Vector2Normalize(dir), forceMag);
 
                 ApplyForce(&bodies[i], force, deltaTime);
-                ApplyForce(&bodies[j], (Vector2){ -force.x, -force.y }, deltaTime);
+                ApplyForce(&bodies[j], Vector2Scale(force, -1.0f), deltaTime);
             }
 
             // avoid drifting
-            Vector2 anchorForce = vert1->position;
-            anchorForce.x *= -ANCHOR_FORCE_MAG;
-            anchorForce.y *= -ANCHOR_FORCE_MAG;
-            ApplyForce(
-                &bodies[i],
-                anchorForce,
-                deltaTime
-            );
+            Vector2 anchorForce = Vector2Scale(vert1->position, -ANCHOR_FORCE_MAG);
+            ApplyForce(&bodies[i], anchorForce, deltaTime);
         }
 
         for(unsigned i = 0; i < graph->vertex_count; i++) {
@@ -448,7 +465,7 @@ void GUIDraw(GUIState *state) {
     float margin = 5;
     float itemWidth = PANEL_WIDTH - (margin * 2);
 
-    if(!state->selectedVertex) {
+    if(!state->selectedVertex && !state->selectedEdge) {
         GuiLine(
             (Rectangle){
                 panelArea.x + margin,
@@ -603,7 +620,7 @@ void GUIDraw(GUIState *state) {
         // if(state->startVertex && state->endVertex) {
         //
         // }
-    } else {
+    } else if(state->selectedVertex) {
         currentY -= 10;
         Vertex *vert = state->selectedVertex;
 
@@ -648,7 +665,35 @@ void GUIDraw(GUIState *state) {
             );
             currentY += 23;
         }
+    } else {
+        currentY -= 10;
+        Edge *edge = state->selectedEdge;
 
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 },
+            TextFormat("Cạnh %u->%u", state->selectedEdgeOrigin->id, edge->target->id)
+        );
+        currentY += 23;
+
+        GuiLabel(
+            (Rectangle){ panelArea.x + margin, currentY, itemWidth, 20 },
+            "Trọng số"
+        );
+        currentY += 25;
+        
+        GuiValueBox(
+            (Rectangle){
+                panelArea.x + margin,
+                currentY,
+                itemWidth,
+                30
+            },
+            NULL,
+            (int*)&edge->weight,
+            0, 20,
+            true
+        );
+        currentY += 35;
     }
 
     GuiStatusBar(
