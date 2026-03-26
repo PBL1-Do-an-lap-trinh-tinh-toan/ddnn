@@ -147,8 +147,8 @@ void swap_node(HeapNode *a, HeapNode *b) {
 }
 void push(Vertex *u, long long dist) {
     if(heap_size + 1 >= head_capacity){
-        heap_capacity = (heap_capacity == 0) ? 256 : heap_capacity * 2;
-        HeapNode *temp = (HeapNode*)realloc(heap, heap_capacity * sizeof(HeapNode));
+        head_capacity = (head_capacity == 0) ? 256 : head_capacity * 2;
+        HeapNode *temp = (HeapNode*)realloc(heap, head_capacity * sizeof(HeapNode));
         if (!temp) return;
         heap = temp;
     }
@@ -188,7 +188,7 @@ void free_heap() {
     head_capacity = 0;
 }
 
-long long shortest_path(Vertex *start, Vertex *end, Graph *graph) {
+long long shortest_path(Graph *graph, Vertex *start, Vertex *end) {
     /**
      * Lưu thông tin truy hồi ở mỗi đỉnh
      * vd nếu tìm được đường đi là A -> B -> C
@@ -214,7 +214,7 @@ long long shortest_path(Vertex *start, Vertex *end, Graph *graph) {
         if(dist_u > d[u->id]) continue;
         if(u == end) break; 
         for(unsigned i=0; i < u->adjacent_count; i++) {
-            Edege *edge = u->adjacents[i];
+            Edge *edge = u->adjacents[i];
             Vertex *v = edge->target;
             long long new_dist = dist_u + edge->weight;
             if(new_dist < d[v->id]){
