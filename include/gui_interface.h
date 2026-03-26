@@ -13,21 +13,24 @@ typedef struct {
     Vertex *endVertex;
     Vertex *selectedVertex;
     Edge *selectedEdge;
-    Vertex *selectedEdgeOrigin;
     Vertex *draggingVertex;
 
     Body *bodies;
     bool physicsEnabled;
 
-
     float springLength;
     float springStiffness;
     float coulombConstant;
 
-    bool physsimButton;
-    bool jiggleButton;
-    bool startVertButton;
-    bool endVertButton;
+    long long shortestPathResult;
+
+    bool physsimRequest;
+    bool jiggleRequest;
+    bool startVertSetRequest;
+    bool endVertSetRequest;
+    bool deleteVertexRequest;
+    bool deleteEdgeRequest;
+
     char statusBar[128];
 
     Font font;
