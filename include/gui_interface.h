@@ -12,6 +12,8 @@ typedef struct {
     Vertex *startVertex;
     Vertex *endVertex;
     Vertex *selectedVertex;
+    Edge *selectedEdge;
+    Vertex *selectedEdgeOrigin;
     Vertex *draggingVertex;
 
     Body *bodies;
