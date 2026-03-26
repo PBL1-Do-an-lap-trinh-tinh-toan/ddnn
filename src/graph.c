@@ -148,7 +148,7 @@ void swap_node(HeapNode *a, HeapNode *b) {
 void push(Vertex *u, long long dist) {
     if(heap_size + 1 >= head_capacity){
         head_capacity = (head_capacity == 0) ? 256 : head_capacity * 2;
-        HeapNode *temp = (HeapNode*)realloc(heap, heap_capacity * sizeof(HeapNode));
+        HeapNode *temp = (HeapNode*)realloc(heap, head_capacity * sizeof(HeapNode));
         if (!temp) return;
         heap = temp;
     }
