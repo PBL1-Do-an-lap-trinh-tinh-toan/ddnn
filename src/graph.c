@@ -133,7 +133,62 @@ int remove_edge(Vertex *owner, unsigned edge_idx) {
     return 1;
 }
 
-int shortest_path(Vertex *start, Vertex *end) {
+typedef struct {
+    Vertex *u;
+    long long dist;
+} HeapNode;
+HeapNode *heap = NULL;
+int heap_size = 0;
+int head_capacity = 0;
+void swap_node(HeapNode *a, HeapNode *b) {
+    HeapNode temp = *a;
+    *a = *b;
+    *b = temp;
+}
+void push(Vertex *u, long long dist) {
+    if(heap_size + 1 >= head_capacity){
+        heap_capacity = (heap_capacity == 0) ? 256 : heap_capacity * 2;
+        HeapNode *temp = (HeapNode*)realloc(heap, heap_capacity * sizeof(HeapNode));
+        if (!temp) return;
+        heap = temp;
+    }
+    heap[++heap_size] = (HeapNode){u, dist};
+    int i = heap_size;
+    while (i > 1 && heap[i].dist < heap[i / 2].dist) {
+        swap_node(&heap[i], &heap[i / 2]);
+        i /= 2;
+    }
+}
+
+HeapNode pop() {
+    HeapNode top = heap[1];
+    heap[1] = heap[heap_size--];
+    int i = 1;
+    while (i * 2 <= heap_size) {
+        int child = i * 2;
+        if (child + 1 <= heap_size && heap[child + 1].dist < heap[child].dist) {
+            child++;
+        }
+        if (heap[i].dist <= heap[child].dist) break;
+        swap_node(&heap[i], &heap[child]);
+        i = child;
+    }
+    return top;
+}
+
+int is_empty() {
+    return heap_size == 0;
+}
+void free_heap() {
+    if(heap != NULL){
+        free(heap);
+        heap = NULL;
+    }
+    heap_size = 0;
+    head_capacity = 0;
+}
+
+long long shortest_path(Vertex *start, Vertex *end, Graph *graph) {
     /**
      * Lưu thông tin truy hồi ở mỗi đỉnh
      * vd nếu tìm được đường đi là A -> B -> C
@@ -143,5 +198,35 @@ int shortest_path(Vertex *start, Vertex *end) {
      *
      * nên làm bằng thuật Dijkstra
      */
-    return 0;
+    long long *d = (long long*)malloc(graph->unique_id*sizeof(long long));
+    if(!d) return -1;
+    for(unsigned i = 0; i<graph->unique_id; i++) {
+        d[i] = INF;
+    }
+    free_heap();
+    d[start->id] = 0;
+    start->path_prev = NULL;
+    push(start, 0);
+    while(!is_empty()){
+        HeapNode current = pop();
+        Vertex *u = current.u;
+        long long dist_u = current.dist;
+        if(dist_u > d[u->id]) continue;
+        if(u == end) break; 
+        for(unsigned i=0; i < u->adjacent_count; i++) {
+            Edege *edge = u->adjacents[i];
+            Vertex *v = edge->target;
+            long long new_dist = dist_u + edge->weight;
+            if(new_dist < d[v->id]){
+                d[v->id] = new_dist;
+                v->path_prev = u;
+                push(v, new_dist);
+            }
+        }
+    }
+long long result = d[end->id];
+free(d);
+free_heap();
+if(result == INF) result = -1;
+return result;
 }
