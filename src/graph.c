@@ -188,7 +188,7 @@ void free_heap() {
     head_capacity = 0;
 }
 
-int shortest_path(Vertex *start, Vertex *end, Graph *graph) {
+long long shortest_path(Vertex *start, Vertex *end, Graph *graph) {
     /**
      * Lưu thông tin truy hồi ở mỗi đỉnh
      * vd nếu tìm được đường đi là A -> B -> C
