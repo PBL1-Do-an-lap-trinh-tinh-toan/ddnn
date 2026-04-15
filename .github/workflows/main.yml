@@ -2,7 +2,6 @@ name: Test Dijkstra Algorithm
 
 on:
   push:
-    # Đã thêm nhánh test1 vào đây để GitHub Actions theo dõi
     branches: [ "main"] 
   pull_request:
     branches: [ "main" ]
@@ -12,11 +11,20 @@ jobs:
     runs-on: ubuntu-latest 
 
     steps:
-    - name: Tai code ve may ao
-      uses: actions/checkout@v3
+    - name: checkout
+      uses: actions/checkout@v4
 
-    - name: Bien dich va Chay file test1.c
-      # Đã thêm -Iinclude vào lệnh gcc
+    - name: install GCC
+      run: sudo apt-get update && sudo apt-get install -y build-essential
+
+    - name: compile test
       run: |
-        gcc -Iinclude test/test1.c src/graph.c -o test_app
-        ./test_app
+        make tests
+
+    - name: test logics
+      run: |
+        for test in test-*.out; do
+          echo "Executing $test..."
+          ./$test || exit 1
+          echo "$test passed"
+        done
