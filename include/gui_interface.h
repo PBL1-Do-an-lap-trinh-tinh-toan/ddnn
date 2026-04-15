@@ -5,8 +5,17 @@
 #include <graph.h>
 #include <physics.h>
 
+typedef enum {
+    MODE_NORMAL,
+    MODE_VERTEX_INSPECT,
+    MODE_EDGE_INSPECT,
+    MODE_CREATE_EDGE,
+} GUIMode;
+
 typedef struct {
     Camera2D camera;
+
+    GUIMode current_mode;
 
     Graph *graph;
     Vertex *startVertex;
@@ -23,13 +32,6 @@ typedef struct {
     float coulombConstant;
 
     long long shortestPathResult;
-
-    bool physsimRequest;
-    bool jiggleRequest;
-    bool startVertSetRequest;
-    bool endVertSetRequest;
-    bool deleteVertexRequest;
-    bool deleteEdgeRequest;
 
     char statusBar[128];
 
