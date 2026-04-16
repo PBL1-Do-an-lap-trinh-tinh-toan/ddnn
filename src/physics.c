@@ -1,16 +1,14 @@
-#include <raylib/raymath.h>
 #include <physics.h>
+#include <raylib/raymath.h>
 #include <constants.h>
 
-void BodyInit(Body *body, Vector2 **pos_vec) {
+void BodyInit(Vertex *body) {
     body->position = Vector2Zero();
     body->velocity = Vector2Zero();
     body->mass = 0.1;
-
-    *pos_vec = &body->position;
 }
 
-void ApplyForce(Body *body, Vector2 force, double duration) {
+void ApplyForce(Vertex *body, Vector2 force, double duration) {
     if(body->mass == INFINITY) return;
 
     Vector2 frame_vel = (Vector2){
@@ -18,9 +16,8 @@ void ApplyForce(Body *body, Vector2 force, double duration) {
         force.y / body->mass * duration
     };
     body->velocity = Vector2Add(body->velocity, frame_vel);
-
 }
 
-void Inertia(Body *body, double delta_time) {
+void Inertia(Vertex *body, double delta_time) {
     body->position = Vector2Add(body->position, (Vector2){ body->velocity.x * delta_time, body->velocity.y * delta_time });
 }

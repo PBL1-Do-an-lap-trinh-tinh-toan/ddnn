@@ -25,7 +25,7 @@ $(TARGET): src/main.c $(GUI_SRC) $(LOGIC_SRC)
 tests: $(TEST_BINS)
 
 %$(EXT): tests/%.c $(LOGIC_SRC)
-	$(CC) $< $(LOGIC_SRC) -o $@ $(CFLAGS) -lm
+	$(CC) $< $(LOGIC_SRC) -o $@ $(CFLAGS) -lm -DLOGIC_ONLY
 
 clean:
 	$(CLEAN_CMD)
