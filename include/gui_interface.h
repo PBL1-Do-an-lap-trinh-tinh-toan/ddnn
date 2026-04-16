@@ -18,13 +18,15 @@ typedef struct {
     GUIMode current_mode;
 
     Graph *graph;
-    Vertex *startVertex;
-    Vertex *endVertex;
     Vertex *selectedVertex;
     Edge *selectedEdge;
     Vertex *draggingVertex;
 
-    Body *bodies;
+    Vertex *pathStartVertex;
+    Vertex *pathEndVertex;
+
+    Vertex *edgeStartVertex;
+
     bool physicsEnabled;
 
     float springLength;
