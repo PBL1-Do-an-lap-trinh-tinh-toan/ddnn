@@ -1101,24 +1101,43 @@ void GUIDraw(GUIState *state) {
     };
     GuiPanel(panelArea, "Điều khiển");
 
+    const char *contextHelper = "";
     switch(state->current_mode) {
         case MODE_CREATE_EDGE:
+            if(!state->edgeStartVertex) {
+                contextHelper = "[Chuột trái]: Chọn đỉnh bắt đầu   |  [Space]: Xác nhận  |  [Esc]: Hủy";
+            } else {
+                contextHelper = "[Chuột trái]: Chọn đỉnh kết thúc  |  [Space]: Xác nhận  |  [Esc]: Hủy";
+            }
             GUIDrawCreateEdge(state, &panelArea);
             break;
 
         case MODE_VERTEX_INSPECT:
+            contextHelper = "[Space]: Đặt đỉnh Bắt đầu/Kết thúc  |  [Chuột trái]: Kéo thả đỉnh";
             GUIDrawVertexInspect(state, &panelArea);
             break;
 
         case MODE_EDGE_INSPECT:
+            contextHelper = "[Chuột giữa]: Kéo thả Camera  |  [Lăn chuột]: Thu phóng";
             GUIDrawEdgeInspect(state, &panelArea);
             break;
 
         default:
         case MODE_NORMAL:
+            contextHelper = "[Chuột giữa]: Kéo thả Camera  |  [Lăn chuột]: Thu phóng  |  [Chuột trái]: Chọn";
             GUIDrawNormalView(state, &panelArea);
             break;
     }
+
+    Vector2 helperTextSize = MeasureTextEx(state->font, contextHelper, 20, 1);
+    DrawTextEx(
+        state->font, 
+        contextHelper, 
+        (Vector2){ 10, GetScreenHeight() - STATUS_BAR_HEIGHT - helperTextSize.y - 10 }, 
+        20, 
+        1, 
+        GRAY
+    );
 
     GuiStatusBar(
         (Rectangle){
