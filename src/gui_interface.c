@@ -974,10 +974,20 @@ void GUIUpdate(GUIState *state) {
     }
 
     float mouse_wheel = GetMouseWheelMove();
-    if(mouse_wheel > 0 && state->camera.zoom < 3) {
-        state->camera.zoom *= 1.2;
-    } else if (mouse_wheel < 0 && state->camera.zoom > 0.1) {
-        state->camera.zoom /= 1.2;
+    if(mouse_wheel != 0) {
+        Vector2 prevMousePos = GetScreenToWorld2D(GetMousePosition(), state->camera);
+
+        if(mouse_wheel > 0 && state->camera.zoom < 3) {
+            state->camera.zoom *= 1.2;
+        } else if (mouse_wheel < 0 && state->camera.zoom > 0.1) {
+            state->camera.zoom /= 1.2;
+        }
+
+        Vector2 newMousePos = GetScreenToWorld2D(GetMousePosition(), state->camera);
+        state->camera.target = Vector2Add(
+            state->camera.target,
+            Vector2Subtract(prevMousePos, newMousePos)
+        );
     }
 
     GUIUpdatePhysics(state);
