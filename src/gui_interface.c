@@ -96,8 +96,9 @@ static void GUIDrawVertex(Vertex *vert, Color color, Font font) {
     DrawTextEx(font, TextFormat("%d", vert->id), textOrigin, 25, 2, BLACK);
 }
 
-static void GUIDrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font, bool mutual_adjacency) {
-    Vector2 dir = Vector2Subtract(edge->target->position, start_vert->position);
+static void GUIDrawEdge(Edge *edge, Color color, Font font, bool mutual_adjacency) {
+    Vertex *startVert = edge->origin;
+    Vector2 dir = Vector2Subtract(edge->target->position, startVert->position);
 
     Vector2 dirNormalized = Vector2Normalize(dir);
     Vector2 normal = dirNormalized;
@@ -107,7 +108,7 @@ static void GUIDrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font, 
 
     Vector2 offset = Vector2Scale(normal, 1.3f * mutual_adjacency);
 
-    Vector2 midPoint = Vector2Add(start_vert->position, edge->target->position);
+    Vector2 midPoint = Vector2Add(startVert->position, edge->target->position);
     midPoint.x /= 2.0;
     midPoint.y /= 2.0;
     midPoint = Vector2Add(midPoint, offset);
@@ -139,7 +140,7 @@ static void GUIDrawEdge(Vertex *start_vert, Edge *edge, Color color, Font font, 
     );
 
     DrawLineEx(
-        Vector2Add(start_vert->position, offset),
+        Vector2Add(startVert->position, offset),
         Vector2Add(edge->target->position, offset),
         EDGE_WIDTH,
         color
@@ -173,7 +174,7 @@ static void GUIDrawGraph(GUIState *state) {
             Vertex *target = vert->adjacents[j]->target;
             bool mutual_adjacency = false;
             mutual_adjacency = find_edge(target, vert);
-            GUIDrawEdge(vert, vert->adjacents[j], GRAY, state->font, mutual_adjacency);
+            GUIDrawEdge(vert->adjacents[j], GRAY, state->font, mutual_adjacency);
         }
     }
 
@@ -184,7 +185,6 @@ static void GUIDrawGraph(GUIState *state) {
             bool mutual_adjacency = false;
             mutual_adjacency = find_edge(current, current->path_prev);
             GUIDrawEdge(
-                current->path_prev,
                 find_edge(current->path_prev, current),
                 ORANGE,
                 state->font,
@@ -196,7 +196,6 @@ static void GUIDrawGraph(GUIState *state) {
 
     if(state->selectedEdge)
         GUIDrawEdge(
-            state->selectedEdge->origin,
             state->selectedEdge,
             MAROON,
             state->font,
@@ -217,8 +216,20 @@ static void GUIDrawGraph(GUIState *state) {
     if(state->selectedVertex)
         GUIDrawVertex(state->selectedVertex, MAROON, state->font);
 
-    if(state->edgeStartVertex)
+    if(state->edgeStartVertex) {
+        Vertex previewTarget;
+        if(!state->selectedVertex)
+            previewTarget.position = GetScreenToWorld2D(GetMousePosition(), state->camera);
+        else
+            previewTarget.position = state->selectedVertex->position;
+        Edge previewEdge;
+        previewEdge.origin = state->edgeStartVertex;
+        previewEdge.target = &previewTarget;
+        previewEdge.weight = 0;
+        GUIDrawEdge(&previewEdge, MAROON, state->font, false);
+
         GUIDrawVertex(state->edgeStartVertex, PURPLE, state->font);
+    }
 }
 
 static void GUIGetObjectUnderCursor(GUIState *state, Vector2 worldMouse) {
@@ -769,6 +780,7 @@ static void GUIDrawVertexInspect(GUIState *state, Rectangle *panelArea) {
     )) {
         state->edgeStartVertex = state->selectedVertex;
         state->current_mode = MODE_CREATE_EDGE;
+        state->selectedVertex = NULL;
     }
     currentY += 35;
 
@@ -835,16 +847,16 @@ static void GUIDrawCreateEdge(GUIState *state, Rectangle *panelArea) {
             "Chọn đỉnh bắt đầu cạnh"
         );
         currentY += 23;
-
-        if(state->selectedVertex) {
-            GUIDrawVertexInfo(state, panelArea, &currentY);
-        }
     } else {
         GuiLabel(
             (Rectangle){ panelArea->x + MARGIN, currentY, ITEM_WIDTH, 20 },
             "Chọn đỉnh kết thúc cạnh"
         );
         currentY += 23;
+
+    }
+    if(state->selectedVertex) {
+        GUIDrawVertexInfo(state, panelArea, &currentY);
     }
 }
 
