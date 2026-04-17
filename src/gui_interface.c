@@ -13,54 +13,13 @@ const float MARGIN = 5;
 const float ITEM_WIDTH = PANEL_WIDTH - (MARGIN * 2);
 const unsigned START_Y = 39;
 
-static Graph *RandomGraph() {
-    unsigned vertexCount = GetRandomValue(8, 15);
-    Graph *graph = make_graph(vertexCount * 2);
-    
-    for(unsigned i = 0; i < vertexCount; i++) {
-        if(!add_vertex(graph)) {
-            delete_graph(graph);
-            return NULL;
-        }
-    }
-
-    for(unsigned i = 1; i < vertexCount; i++) {
-        if(!make_edge(graph->vertices[i - 1], graph->vertices[i], GetRandomValue(5, 15))) {
-            delete_graph(graph);
-            return NULL;
-        }
-    }
-
-    for(unsigned i = 2; i < vertexCount; i++) {
-        if (GetRandomValue(1, 100) <= 50) { 
-            unsigned randomPrevious = GetRandomValue(0, i - 2); 
-            if(!make_edge(
-                graph->vertices[randomPrevious],
-                graph->vertices[i],
-                GetRandomValue(1, 25) 
-            )) {
-                delete_graph(graph);
-                return NULL;
-            }
-        }
-    }
-
-    unsigned numRetrograde = GetRandomValue(2, 4);
-    for(unsigned k = 0; k < numRetrograde; k++) {
-        unsigned fromIdx = GetRandomValue(3, vertexCount - 1);
-        unsigned toIdx = GetRandomValue(0, fromIdx - 2);
-
-        if(!make_edge(
-            graph->vertices[fromIdx],
-            graph->vertices[toIdx],
-            GetRandomValue(1, 8) 
-        )) {
-            delete_graph(graph);
-            return NULL;
-        }
-    }
-
-    return graph;
+static void DrawTextCenter(Vector2 position, float panelWidth, const char* text, Font font, unsigned fontSize) {
+    Vector2 textOrigin = MeasureTextEx(font, text, fontSize, 2);
+    textOrigin.x /= -2.0;
+    textOrigin.y /= -2.0;
+    position.x += panelWidth / 2.0f;
+    textOrigin = Vector2Add(textOrigin, position);
+    DrawTextEx(font, text, textOrigin, fontSize, 2, GRAY);
 }
 
 static void GUIDrawOffsettedGrid(Camera2D camera, float spacing) {
@@ -599,24 +558,6 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
     GuiEnable();
     currentY += 35;
 
-    if(state->graph) GuiDisable();
-    if(GuiButton(
-        (Rectangle){ panelArea->x + MARGIN, currentY, ITEM_WIDTH, 30 },
-        "Tạo đồ thị ngẫu nhiên"
-    )) {
-        SetRandomSeed((unsigned)GetTime());
-        Graph *rGraph = RandomGraph();
-        if(rGraph) {
-            GUILoadGraph(state, rGraph);
-        } else {
-            snprintf(state->statusBar, sizeof(state->statusBar), "%s", TextFormat(
-                "Tạo đồ thị ngẫu nhiên không thành công (hết bộ nhớ?)"
-            ));
-        }
-    }
-    GuiEnable();
-    currentY += 35;
-
     if(GuiButton((Rectangle){
         panelArea->x + MARGIN,
         currentY,
@@ -910,9 +851,9 @@ static void GUIDrawCreateEdge(GUIState *state, Rectangle *panelArea) {
 void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, appName);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
-    SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
+    state->aboutPage = true;
     state->current_mode = MODE_NORMAL;
 
     state->graph = NULL;
@@ -1042,7 +983,7 @@ void GUIUpdate(GUIState *state) {
     // per mode update
     switch(state->current_mode) {
         case MODE_NORMAL:
-            if(IsKeyPressed(KEY_ESCAPE)) {
+            if(IsKeyPressed(KEY_BACKSPACE) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
                 state->pathStartVertex = NULL;
                 state->pathEndVertex = NULL;
                 GUIFindShortestPath(state);
@@ -1065,7 +1006,7 @@ void GUIUpdate(GUIState *state) {
             break;
 
         case MODE_CREATE_EDGE:
-            if(IsKeyPressed(KEY_ESCAPE)) {
+            if(IsKeyPressed(KEY_BACKSPACE) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
                 state->edgeStartVertex = NULL;
                 state->current_mode = MODE_NORMAL;
                 break;
@@ -1170,6 +1111,94 @@ void GUIDraw(GUIState *state) {
         },
         state->statusBar
     );
+
+    const unsigned ABOUTPAGE_WIDTH = 550;
+    const unsigned ABOUTPAGE_HEIGHT = 380;
+    const unsigned MARGIN = 20;
+
+    if(state->aboutPage) {
+        unsigned currentX = (GetScreenWidth() - ABOUTPAGE_WIDTH) / 2;
+        unsigned currentY = (GetScreenHeight() - ABOUTPAGE_HEIGHT) / 2.0f;
+        state->aboutPage = !GuiWindowBox(
+            (Rectangle) {
+                currentX,
+                currentY,
+                ABOUTPAGE_WIDTH,
+                ABOUTPAGE_HEIGHT
+            },
+            NULL
+        );
+
+        currentY += 58;
+        currentX += MARGIN;
+
+        DrawTextCenter(
+            (Vector2){ currentX, currentY },
+            ABOUTPAGE_WIDTH - MARGIN * 2,
+            "PBL1: Đồ án lập trình tính toán",
+            state->font,
+            28
+        );
+        currentY += 32;
+
+        DrawTextCenter(
+            (Vector2){ currentX, currentY },
+            ABOUTPAGE_WIDTH - MARGIN * 2,
+            "Đề tài 914",
+            state->font,
+            20
+        );
+        currentY += 24;
+
+        DrawTextCenter(
+            (Vector2){ currentX, currentY },
+            ABOUTPAGE_WIDTH - MARGIN * 2,
+            "Tìm đường đi ngắn nhất",
+            state->font,
+            26
+        );
+        currentY += 14;
+
+        GuiLabel(
+            (Rectangle) {currentX, currentY, ABOUTPAGE_WIDTH, 100},
+            "Giáo viên hướng dẫn:"
+        );
+        currentY += 24;
+
+        GuiLabel(
+            (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
+            "Đỗ Thị Tuyết Hoa"
+        );
+        currentY += 35;
+
+        GuiLabel(
+            (Rectangle) {currentX, currentY, ABOUTPAGE_WIDTH, 100},
+            "Sinh viên thực hiện:"
+        );
+        currentY += 24;
+
+        GuiLabel(
+            (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
+            "Trần Đức Minh Nhật"
+        );
+
+        GuiLabel(
+            (Rectangle) {currentX + 215, currentY, ABOUTPAGE_WIDTH, 100},
+            "25T_DT1"
+        );
+
+        currentY += 24;
+
+        GuiLabel(
+            (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
+            "Trần Vi Diệu"
+        );
+
+        GuiLabel(
+            (Rectangle) {currentX + 215, currentY, ABOUTPAGE_WIDTH, 100},
+            "25T_DT4"
+        );
+    }
 
     EndDrawing();
 }

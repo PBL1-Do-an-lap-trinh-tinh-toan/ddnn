@@ -13,6 +13,8 @@ typedef enum {
 } GUIMode;
 
 typedef struct {
+    bool aboutPage;
+
     Camera2D camera;
 
     GUIMode current_mode;

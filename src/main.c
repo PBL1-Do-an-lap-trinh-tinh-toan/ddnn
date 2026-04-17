@@ -5,7 +5,7 @@ GUIState state;
 int main(void) {
     GUIInit(&state, "ddnn", "access/IBMPlexMono-Regular.ttf");
 
-Graph *g = make_graph(15 * 2);
+    Graph *g = make_graph(15 * 2);
 
     Vertex *V1  = add_vertex(g);
     Vertex *V2  = add_vertex(g);
