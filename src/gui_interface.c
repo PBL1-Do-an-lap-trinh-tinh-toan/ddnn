@@ -1047,9 +1047,6 @@ void GUIUpdate(GUIState *state) {
                 state->pathEndVertex = NULL;
                 GUIFindShortestPath(state);
             }
-            if(IsKeyPressed(KEY_TAB)) {
-                state->selectedVertex = state->graph->vertices[0];
-            }
             break;
 
         case MODE_VERTEX_INSPECT:
@@ -1064,14 +1061,6 @@ void GUIUpdate(GUIState *state) {
                     state->pathEndVertex = NULL;
                     GUISetStartVert(state);
                 }
-            } else if(IsKeyPressed(KEY_TAB)) {
-                Vertex *curr = state->selectedVertex;
-                int next_idx = curr->idx + 1;
-                if(IsKeyDown(KEY_LEFT_SHIFT))
-                    next_idx = curr->idx - 1;
-                if(next_idx >= state->graph->vertex_count || next_idx < 0)
-                    next_idx = 0;
-                state->selectedVertex = state->graph->vertices[next_idx];
             }
             break;
 
@@ -1138,26 +1127,26 @@ void GUIDraw(GUIState *state) {
     switch(state->current_mode) {
         case MODE_CREATE_EDGE:
             if(!state->edgeStartVertex) {
-                contextHelper = "[Chuột trái]: Chọn đỉnh bắt đầu\n[Space]: Xác nhận\n[Esc]: Hủy";
+                contextHelper = "[Chuột trái]: Chọn đỉnh bắt đầu   |  [Space]: Xác nhận  |  [Esc]: Hủy";
             } else {
-                contextHelper = "[Chuột trái]: Chọn đỉnh kết thúc\n[Space]: Xác nhận\n[Esc]: Hủy";
+                contextHelper = "[Chuột trái]: Chọn đỉnh kết thúc  |  [Space]: Xác nhận  |  [Esc]: Hủy";
             }
             GUIDrawCreateEdge(state, &panelArea);
             break;
 
         case MODE_VERTEX_INSPECT:
-            contextHelper = "[Space]: Đặt đỉnh Bắt đầu/Kết thúc\n[Tab] Chọn đỉnh tiếp theo\n[Shift+Tab] Chọn đỉnh trước đó\n[Chuột trái]: Kéo thả đỉnh";
+            contextHelper = "[Space]: Đặt đỉnh Bắt đầu/Kết thúc  |  [Chuột trái]: Kéo thả đỉnh";
             GUIDrawVertexInspect(state, &panelArea);
             break;
 
         case MODE_EDGE_INSPECT:
-            contextHelper = "[Chuột giữa]: Kéo thả Camera\n[Lăn chuột]: Thu phóng";
+            contextHelper = "[Chuột giữa]: Kéo thả Camera  |  [Lăn chuột]: Thu phóng";
             GUIDrawEdgeInspect(state, &panelArea);
             break;
 
         default:
         case MODE_NORMAL:
-            contextHelper = "[Chuột giữa]: Kéo thả Camera\n[Lăn chuột]: Thu phóng\n[Chuột trái]: Chọn\n[Tab] Chọn đỉnh 0";
+            contextHelper = "[Chuột giữa]: Kéo thả Camera  |  [Lăn chuột]: Thu phóng  |  [Chuột trái]: Chọn";
             GUIDrawNormalView(state, &panelArea);
             break;
     }
