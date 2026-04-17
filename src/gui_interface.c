@@ -179,7 +179,11 @@ static void GUIDrawGraph(GUIState *state) {
     }
 
     // highlight shortest path
-    if(state->pathStartVertex && state->pathEndVertex && (state->shortestPathResult >= 0)) {
+    if(
+        state->pathStartVertex
+        && state->pathEndVertex
+        && state->shortestPathResult != NO_PATH
+    ) {
         Vertex *current = state->pathEndVertex;
         while(current != state->pathStartVertex) {
             bool mutual_adjacency = false;
@@ -348,7 +352,7 @@ static void GUIFindShortestPath(GUIState *state) {
         return;
 
     state->shortestPathResult = shortest_path(state->graph, state->pathStartVertex, state->pathEndVertex);
-    if(state->shortestPathResult>= 0) {
+    if(state->shortestPathResult != NO_PATH) {
         strcpy(
             state->statusBar,
             TextFormat(
@@ -399,12 +403,48 @@ static void GUIAddVertex(GUIState *state) {
     }
 }
 
+static void GUIAddEdge(GUIState *state, Vertex *startVert, Vertex *endVert) {
+    Edge *edge;
+    if(!(edge = find_edge(startVert, endVert)))
+        edge = make_edge(startVert, endVert, 0);
+
+    if(!edge) {
+        snprintf(
+            state->statusBar,
+            sizeof(state->statusBar),
+            "%s",
+            "Đã đạt số lượng cạnh tối đa"
+        );
+    } else {
+        state->selectedVertex = NULL;
+        state->selectedEdge = edge;
+        snprintf(
+            state->statusBar,
+            sizeof(state->statusBar),
+            "%s",
+            TextFormat(
+                "Đã thêm cạnh %d -> %d",
+                startVert->id,
+                endVert->id
+            )
+        );
+    }
+
+    state->edgeStartVertex = NULL;
+    state->current_mode = MODE_EDGE_INSPECT;
+}
+
 static void GUISwapStartEndVert(GUIState *state) {
     Vertex *t = state->pathStartVertex;
     state->pathStartVertex = state->pathEndVertex;
     state->pathEndVertex = t;
-    state->shortestPathResult = -1;
-    snprintf(state->statusBar, sizeof(state->statusBar), "%s","Đã hoán đổi đỉnh bắt đầu và đỉnh kết thúc");
+    snprintf(
+        state->statusBar,
+        sizeof(state->statusBar),
+        "%s",
+        "Đã hoán đổi đỉnh bắt đầu và đỉnh kết thúc"
+    );
+    GUIFindShortestPath(state);
 }
 
 static void GUITogglePhysicsSim(GUIState *state) {
@@ -483,7 +523,7 @@ static void GUIReverseEdge(GUIState *state) {
     Vertex *to = state->selectedEdge->target;
     unsigned from_id = from->id;
     unsigned to_id = to->id;
-    unsigned long long weight = state->selectedEdge->weight;
+    weight_unit_t weight = state->selectedEdge->weight;
 
     Edge *new_edge = make_edge(to, from, weight);
 
@@ -517,7 +557,7 @@ static void GUIDeleteVert(GUIState *state) {
     remove_vertex(state->graph, sel_vert->id);
     state->selectedVertex = NULL;
     sel_vert = NULL;
-    state->shortestPathResult = -1;
+    GUIFindShortestPath(state);
 
     snprintf(state->statusBar, sizeof(state->statusBar), "%s", TextFormat("Đã xóa đỉnh %u", vert_id));
 }
@@ -580,15 +620,14 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
     if(GuiButton((Rectangle){
         panelArea->x + MARGIN,
         currentY,
-        ITEM_WIDTH,
+        (ITEM_WIDTH - 5) / 2,
         30
     }, "Tạo đỉnh mới")) GUIAddVertex(state);
-    currentY += 35;
 
     if(GuiButton((Rectangle){
-        panelArea->x + MARGIN,
+        panelArea->x + (ITEM_WIDTH - 5) / 2 + MARGIN * 2,
         currentY,
-        ITEM_WIDTH,
+        (ITEM_WIDTH - 5) / 2,
         30
     }, "Tạo cạnh mới")) {
         state->current_mode = MODE_CREATE_EDGE;
@@ -807,7 +846,7 @@ static void GUIDrawEdgeInspect(GUIState *state, Rectangle *panelArea) {
     );
     currentY += 25;
     
-    long long int pWeight = edge->weight;
+    weight_unit_t pWeight = edge->weight;
     GuiValueBox(
         (Rectangle){
             panelArea->x + MARGIN,
@@ -821,7 +860,7 @@ static void GUIDrawEdgeInspect(GUIState *state, Rectangle *panelArea) {
         true
     );
     if(pWeight != edge->weight) {
-        state->shortestPathResult = -1;
+        GUIFindShortestPath(state);
     }
     currentY += 35;
 
@@ -829,6 +868,14 @@ static void GUIDrawEdgeInspect(GUIState *state, Rectangle *panelArea) {
         (Rectangle){ panelArea->x + MARGIN, currentY, ITEM_WIDTH, 30 },
         "Đảo chiều"
     )) GUIReverseEdge(state);
+    currentY += 35;
+
+    if(GuiButton(
+        (Rectangle){ panelArea->x + MARGIN, currentY, ITEM_WIDTH, 30 },
+        "Thêm cạnh ngược chiều"
+    )) {
+        GUIAddEdge(state, state->selectedEdge->target, state->selectedEdge->origin);
+    }
     currentY += 35;
 
     if(GuiButton(
@@ -998,7 +1045,7 @@ void GUIUpdate(GUIState *state) {
             if(IsKeyPressed(KEY_ESCAPE)) {
                 state->pathStartVertex = NULL;
                 state->pathEndVertex = NULL;
-                state->shortestPathResult = -1;
+                GUIFindShortestPath(state);
             }
             break;
 
@@ -1035,32 +1082,7 @@ void GUIUpdate(GUIState *state) {
                 if(state->selectedVertex && IsKeyPressed(KEY_SPACE)) {
                     Vertex *endVert = state->selectedVertex;
                     state->selectedVertex = NULL;
-
-                    Edge *edge = make_edge(state->edgeStartVertex, endVert, 0);
-                    if(!edge) {
-                        snprintf(
-                            state->statusBar,
-                            sizeof(state->statusBar),
-                            "%s",
-                            "Đã đạt số lượng cạnh tối đa"
-                        );
-                    } else {
-                        state->selectedVertex = NULL;
-                        state->selectedEdge = edge;
-                        snprintf(
-                            state->statusBar,
-                            sizeof(state->statusBar),
-                            "%s",
-                            TextFormat(
-                                "Đã thêm cạnh %d -> %d",
-                                state->edgeStartVertex->id,
-                                endVert->id
-                            )
-                        );
-                    }
-
-                    state->edgeStartVertex = NULL;
-                    state->current_mode = MODE_EDGE_INSPECT;
+                    GUIAddEdge(state, state->edgeStartVertex, endVert);
                 }
             }
 

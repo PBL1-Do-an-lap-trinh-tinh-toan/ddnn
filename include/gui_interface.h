@@ -33,7 +33,7 @@ typedef struct {
     float springStiffness;
     float coulombConstant;
 
-    long long shortestPathResult;
+    weight_unit_t shortestPathResult;
 
     char statusBar[128];
 
