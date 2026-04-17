@@ -2,11 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define INF 999999999999999LL
-
 typedef struct {
     Vertex *u;
-    long long dist;
+    weight_unit_t dist;
 } HeapNode;
 
 HeapNode *heap = NULL;
@@ -115,12 +113,10 @@ Edge *make_edge(Vertex *from, Vertex *to, unsigned weight) {
     if(from->adjacent_count == from->max_adjacent_count)
         return NULL;
 
-    for(unsigned i = 0; i < from->adjacent_count; i++) {
-        Edge *e = from->adjacents[i];
-        if(e->target == to) {
-            e->weight = weight;
-            return e;
-        }
+    Edge *t = find_edge(from, to);
+    if(t) {
+        t->weight = weight;
+        return t;
     }
 
     Edge *e = (Edge*)malloc(sizeof(Edge));
@@ -161,7 +157,7 @@ void heap_swap_node(HeapNode *a, HeapNode *b) {
     *a = *b;
     *b = temp;
 }
-void heap_push(Vertex *u, long long dist) {
+void heap_push(Vertex *u, weight_unit_t dist) {
     if(heap_size + 1 >= head_capacity){
         head_capacity = (head_capacity == 0) ? 256 : head_capacity * 2;
         HeapNode *temp = (HeapNode*)realloc(heap, head_capacity * sizeof(HeapNode));
@@ -205,11 +201,11 @@ void heap_clear() {
     head_capacity = 0;
 }
 
-long long shortest_path(Graph *graph, Vertex *start, Vertex *end) {
-    long long *d = (long long*)malloc(graph->unique_id*sizeof(long long));
+weight_unit_t shortest_path(Graph *graph, Vertex *start, Vertex *end) {
+    weight_unit_t *d = (weight_unit_t*)malloc(graph->unique_id*sizeof(weight_unit_t));
     if(!d) return -1;
     for(unsigned i = 0; i<graph->unique_id; i++) {
-        d[i] = INF;
+        d[i] = NO_PATH;
     }
 
     heap_clear();
@@ -220,13 +216,13 @@ long long shortest_path(Graph *graph, Vertex *start, Vertex *end) {
     while(!is_heap_empty()){
         HeapNode current = heap_pop();
         Vertex *u = current.u;
-        long long dist_u = current.dist;
+        weight_unit_t dist_u = current.dist;
         if(dist_u > d[u->id]) continue;
         if(u == end) break;
         for(unsigned i=0; i < u->adjacent_count; i++) {
             Edge *edge = u->adjacents[i];
             Vertex *v = edge->target;
-            long long new_dist = dist_u + edge->weight;
+            weight_unit_t new_dist = dist_u + edge->weight;
             if(new_dist < d[v->id]){
                 d[v->id] = new_dist;
                 v->path_prev = u;
@@ -235,9 +231,8 @@ long long shortest_path(Graph *graph, Vertex *start, Vertex *end) {
         }
     }
 
-    long long result = d[end->id];
+    weight_unit_t result = d[end->id];
     free(d);
     heap_clear();
-    if(result == INF) result = -1;
     return result;
 }

@@ -7,13 +7,17 @@ typedef struct { float x[3]; } Vector2;
 #include <raylib/raymath.h>
 #endif
 
+typedef unsigned long long weight_unit_t;
+
+#define NO_PATH 999999999999999LL
+
 /**
  * @brief Cạnh của một đỉnh, khởi tạo khi thêm 1 đỉnh liền kể
  */
 typedef struct Edge {
     struct Vertex *origin; /**< Đỉnh xuất phát */
     struct Vertex *target; /**< Đích của cạnh */
-    unsigned long long weight; /**< Trọng số/chi phí */
+    weight_unit_t weight; /**< Trọng số/chi phí */
     unsigned idx; /**< Chỉ số của cạnh trong mảng kề của đỉnh xuất phát */
 } Edge;
 
@@ -114,6 +118,6 @@ int remove_edge(Edge *edge);
  * @param[end] Đỉnh kết thúc
  * @return 1 nếu tồn tại đường đi giữa start và end, 0 nếu không có đường đi
  */
-long long shortest_path(Graph *graph, Vertex *start, Vertex *end);
+weight_unit_t shortest_path(Graph *graph, Vertex *start, Vertex *end);
 
 #endif

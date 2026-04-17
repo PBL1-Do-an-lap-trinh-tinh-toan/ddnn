@@ -19,7 +19,7 @@ void test0() {
     make_edge(C, E, 2);
     make_edge(E, D, 9);
 
-    long long dist = shortest_path(g, A, D);
+    weight_unit_t dist = shortest_path(g, A, D);
 
     // expected path: A -> C -> B -> D
     // cost: 3 + 1 + 2 = 6
@@ -64,7 +64,7 @@ void test1() {
     
     make_edge(V[8], V[9], 7); 
 
-    long long dist = shortest_path(g, V[0], V[9]);
+    weight_unit_t dist = shortest_path(g, V[0], V[9]);
 
     // expected path: 0 -> 2 -> 4 -> 3 -> 5 -> 7 -> 9
     // cost: 2 + 3 + 4 + 2 + 1 + 4 = 16

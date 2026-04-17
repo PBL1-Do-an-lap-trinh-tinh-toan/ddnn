@@ -13,6 +13,8 @@ typedef enum {
 } GUIMode;
 
 typedef struct {
+    bool aboutPage;
+
     Camera2D camera;
 
     GUIMode current_mode;
@@ -33,7 +35,7 @@ typedef struct {
     float springStiffness;
     float coulombConstant;
 
-    long long shortestPathResult;
+    weight_unit_t shortestPathResult;
 
     char statusBar[128];
 
