@@ -377,6 +377,7 @@ static void GUIAddEdge(GUIState *state, Vertex *startVert, Vertex *endVert) {
     } else {
         state->selectedVertex = NULL;
         state->selectedEdge = edge;
+        GUIFindShortestPath(state);
         snprintf(
             state->statusBar,
             sizeof(state->statusBar),
@@ -417,15 +418,20 @@ static void GUITogglePhysicsSim(GUIState *state) {
     }
 }
 
-static void GUIJiggleVert(GUIState *state) {
+static void GUIShuffleVert(GUIState *state) {
     if(!state->graph) return;
     
     SetRandomSeed((unsigned)GetTime());
+    float boundsSize = state->springLength * state->graph->vertex_count / 3.0;
     for(unsigned i = 0; i < state->graph->vertex_count; i++) {
         float theta = GetRandomValue(0, 360) * DEG2RAD;
         Vector2 dir = Vector2Scale((Vector2){cos(theta), sin(theta)}, VELOCITY_CAP);
-        state->graph->vertices[i]->velocity.x += dir.x;
-        state->graph->vertices[i]->velocity.y += dir.y;
+        Vertex *vert = state->graph->vertices[i];
+        vert->velocity.x += dir.x;
+        vert->velocity.y += dir.y;
+        vert->position.x = (GetRandomValue(-500, 500) / 500.0) * boundsSize;
+        vert->position.y = (GetRandomValue(-500, 500) / 500.0) * boundsSize;
+
     }
 }
 
@@ -471,6 +477,7 @@ static void GUIDeleteEdge(GUIState *state) {
     remove_edge(state->selectedEdge);
 
     state->selectedEdge = NULL;
+    GUIFindShortestPath(state);
 
     snprintf(state->statusBar, sizeof(state->statusBar), "%s", TextFormat("Đã xóa cạnh %u -> %u", from_id, to_id));
 }
@@ -583,18 +590,6 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
     }, "Đảo đỉnh bắt đầu/kết thúc")) GUISwapStartEndVert(state);
     currentY += 35;
 
-
-    if(!state->pathStartVertex || !state->pathEndVertex)
-        GuiDisable();
-    if(GuiButton((Rectangle){
-        panelArea->x + MARGIN,
-        currentY,
-        ITEM_WIDTH,
-        30
-    }, "Tìm đường đi ngắn nhất")) GUIFindShortestPath(state);
-    currentY += 35;
-    GuiEnable();
-
     currentY += 15;
     GuiLine(
         (Rectangle){
@@ -625,8 +620,8 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
             ITEM_WIDTH,
             30
         },
-        "Rung đỉnh"
-    )) GUIJiggleVert(state);
+        "Xáo đỉnh"
+    )) GUIShuffleVert(state);
     currentY += 35;
 
     GuiLabel(
@@ -1020,6 +1015,9 @@ void GUIUpdate(GUIState *state) {
                     }
                 }
             } else {
+                if(state->selectedVertex == state->edgeStartVertex) {
+                    state->selectedVertex = NULL;
+                }
                 if(state->selectedVertex && IsKeyPressed(KEY_SPACE)) {
                     Vertex *endVert = state->selectedVertex;
                     state->selectedVertex = NULL;
