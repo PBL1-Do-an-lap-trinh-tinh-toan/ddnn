@@ -44,6 +44,105 @@ static void GUIDrawOffsettedGrid(Camera2D camera, float spacing) {
     }
 }
 
+// taken from
+// https://github.com/raysan5/raygui/blob/master/examples/floating_window/floating_window.c
+void GuiWindowFloating(
+    Vector2 *position,
+    Vector2 *size,
+    bool *minimized,
+    bool *moving,
+    void (*draw_content)(Vector2, GUIState*),
+    Vector2 content_size,
+    const char* title,
+    GUIState* state
+) {
+    #if !defined(RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT)
+        #define RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT 24
+    #endif
+
+    #if !defined(RAYGUI_WINDOW_CLOSEBUTTON_SIZE)
+        #define RAYGUI_WINDOW_CLOSEBUTTON_SIZE 18
+    #endif
+
+    int close_title_size_delta_half = (RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT - RAYGUI_WINDOW_CLOSEBUTTON_SIZE) / 2;
+
+    // window movement and resize input and collision check
+    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !*moving) {
+        Vector2 mouse_position = GetMousePosition();
+
+        Rectangle title_collision_rect = {
+            position->x,
+            position->y,
+            size->x - (RAYGUI_WINDOW_CLOSEBUTTON_SIZE + close_title_size_delta_half),
+            RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT
+        };
+
+        if(CheckCollisionPointRec(mouse_position, title_collision_rect)) {
+            *moving = true;
+        }
+    }
+
+    // window movement and resize update
+    if(*moving) {
+        Vector2 mouse_delta = GetMouseDelta();
+        position->x += mouse_delta.x;
+        position->y += mouse_delta.y;
+
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+            *moving = false;
+
+            // clamp window position keep it inside the application area
+            if(position->x < 0) position->x = 0;
+            else if(position->x > GetScreenWidth() - size->x) position->x = GetScreenWidth() - size->x;
+            if(position->y < 0) position->y = 0;
+            else if(position->y > GetScreenHeight()) position->y = GetScreenHeight() - RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT;
+        }
+
+    }
+
+    // window and content drawing with scissor and scroll area
+    if(*minimized) {
+        GuiStatusBar((Rectangle){ position->x, position->y, size->x, RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT }, title);
+
+        if (GuiButton((Rectangle){ position->x + size->x - RAYGUI_WINDOW_CLOSEBUTTON_SIZE - close_title_size_delta_half,
+                                   position->y + close_title_size_delta_half,
+                                   RAYGUI_WINDOW_CLOSEBUTTON_SIZE,
+                                   RAYGUI_WINDOW_CLOSEBUTTON_SIZE },
+                                   "#120#")) {
+            *minimized = false;
+        }
+
+    } else {
+        *minimized = GuiWindowBox((Rectangle) { position->x, position->y, size->x, size->y }, title);
+
+        // scissor and draw content within a scroll panel
+        if(draw_content != NULL) {
+            Rectangle scissor = { 0 };
+            GuiPanel(
+                (Rectangle) {
+                    position->x,
+                    position->y + RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT,
+                    size->x,
+                    size->y - RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT
+                },
+                NULL
+            );
+
+            bool require_scissor = size->x < content_size.x || size->y < content_size.y;
+
+            if(require_scissor) {
+                BeginScissorMode(scissor.x, scissor.y, scissor.width, scissor.height);
+            }
+
+            draw_content(*position, state);
+
+            if(require_scissor) {
+                EndScissorMode();
+            }
+        }
+    }
+}
+
 static void GUIDrawVertex(Vertex *vert, Color color, Font font) {
     DrawCircleV(vert->position, VERTEX_RADIUS, GRAY);
     DrawCircleV(vert->position, VERTEX_RADIUS - 3, color);
@@ -321,6 +420,7 @@ static void GUIFindShortestPath(GUIState *state) {
                 state->shortestPathResult
             )
         );
+        state->pathPage = true;
     } else {
         strcpy(
             state->statusBar,
@@ -590,6 +690,18 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
     }, "Đảo đỉnh bắt đầu/kết thúc")) GUISwapStartEndVert(state);
     currentY += 35;
 
+    if(state->pathPage || state->shortestPathResult == NO_PATH) GuiDisable();
+    if(GuiButton((Rectangle){
+        panelArea->x + MARGIN,
+        currentY,
+        ITEM_WIDTH,
+        30
+    }, "Hiện bảng kết quả")) {
+        state->pathPage = true;
+    }
+    currentY += 35;
+    GuiEnable();
+
     currentY += 15;
     GuiLine(
         (Rectangle){
@@ -706,12 +818,12 @@ static void GUIDrawVertexInfo(GUIState *state, Rectangle *panelArea, int *curren
     );
     *currentY += 23;
 
-    GuiLabel(
-        (Rectangle){ panelArea->x + MARGIN, *currentY, ITEM_WIDTH, 20 },
-        "Đỉnh kề"
-    );
-    *currentY += 25;
-    if(vert->adjacent_count) {
+    if(vert->adjacent_count > 0) {
+        GuiLabel(
+            (Rectangle){ panelArea->x + MARGIN, *currentY, ITEM_WIDTH, 20 },
+            "Đỉnh kề"
+        );
+        *currentY += 25;
         for(unsigned i = 0; i < vert->adjacent_count; i++) {
             GuiLabel((Rectangle){ panelArea->x + MARGIN + 10, *currentY, ITEM_WIDTH, 20 }, 
                 TextFormat(
@@ -725,9 +837,9 @@ static void GUIDrawVertexInfo(GUIState *state, Rectangle *panelArea, int *curren
     } else {
         GuiLabel(
             (Rectangle){ panelArea->x + MARGIN, *currentY, ITEM_WIDTH, 20 },
-            "- Không có đỉnh kề"
+            "Không có đỉnh kề"
         );
-        currentY += 23;
+        *currentY += 23;
     }
 }
 
@@ -843,6 +955,225 @@ static void GUIDrawCreateEdge(GUIState *state, Rectangle *panelArea) {
     }
 }
 
+static void _drawPathPage(Vector2 position, GUIState *state) {
+    float currentX = position.x + MARGIN;
+    float currentY = position.y + MARGIN + RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT;
+
+    if(state->shortestPathResult == NO_PATH) {
+        if(state->pathStartVertex && state->pathEndVertex) {
+            GuiLabel(
+                (Rectangle){ currentX, currentY, 550, 20 },
+                TextFormat(
+                    "Không tồn tại đường đi từ đỉnh %d đến đỉnh %d",
+                    state->pathStartVertex->id,
+                    state->pathEndVertex->id
+                )
+            );
+        } else {
+            GuiLabel(
+                (Rectangle){ currentX, currentY, 550, 20 },
+                "Chưa chọn đỉnh bắt đầu/kết thúc"
+            );
+        }
+        return;
+    }
+
+    GuiLabel(
+        (Rectangle){ currentX, currentY, 550, 20 },
+        TextFormat(
+            "Chi phí tối thiểu để đi từ đỉnh %d đến đỉnh %d là %d",
+            state->pathStartVertex->id,
+            state->pathEndVertex->id,
+            state->shortestPathResult
+        )
+    );
+    currentY += 40;
+
+    GuiLabel(
+        (Rectangle){ currentX, currentY, ITEM_WIDTH, 20 },
+        "Đường đi:"
+    );
+    currentY += 35;
+
+    Vertex *vertStack[128];
+    unsigned stkTop = 0;
+    Vertex *current = state->pathEndVertex;
+
+    while(current != state->pathStartVertex) {
+        vertStack[stkTop++] = current;
+        current = current->path_prev; 
+    }
+    vertStack[stkTop++] = state->pathStartVertex;
+
+    const unsigned MAX_VERT_PER_LINE = 10;
+
+    unsigned vertCount = 0;
+    char buffer[32];
+    currentX = position.x + MARGIN;
+    while(stkTop > 0) {
+        Vertex *vert = vertStack[stkTop - 1];
+        vertCount++;
+
+        if(vertCount % MAX_VERT_PER_LINE > 0) {
+            snprintf(buffer, 32, "%d", vert->id);
+        } else {
+            snprintf(buffer, 32, "%d", vert->id);
+            currentY += 24;
+            currentX = position.x + MARGIN;
+        }
+
+        DrawTextCenter(
+            (Vector2){ currentX, currentY },
+            45,
+            buffer,
+            state->font,
+            20
+        );
+
+        currentX += 24;
+
+        if(vert != state->pathEndVertex) {
+            DrawTextCenter(
+                (Vector2){ currentX, currentY },
+                45,
+                "->",
+                state->font,
+                20
+            );
+            currentX += 24;
+        }
+
+        stkTop--;
+    }
+    currentX = position.x + MARGIN;
+
+    const unsigned BUTTON_WIDTH = 140;
+    const unsigned BUTTON_HEIGHT = 30;
+
+    GuiButton(
+        (Rectangle){
+            550 - MARGIN - BUTTON_WIDTH + position.x,
+            180 - MARGIN - BUTTON_HEIGHT + position.y,
+            BUTTON_WIDTH,
+            BUTTON_HEIGHT
+        },
+        "Xuất kết quả"
+    );
+}
+
+static void DrawPathPage(GUIState *state) {
+    if(!state->pathPage) return;
+
+    static Vector2 pagePosition = (Vector2){ 10, 10 };
+    static Vector2 pageSize = (Vector2){ 550, 180 };
+    static bool isMoving = false;
+
+    bool isMinimized = !state->pathPage;
+
+    GuiWindowFloating(
+        &pagePosition,
+        &pageSize,
+        &isMinimized,
+        &isMoving,
+        _drawPathPage,
+        (Vector2){550, 180},
+        "Kết quả",
+        state
+    );
+
+    state->pathPage = !isMinimized;
+}
+
+static void DrawAboutPage(GUIState *state) {
+    if(!state->aboutPage) return;
+
+    const unsigned ABOUTPAGE_WIDTH = 550;
+    const unsigned ABOUTPAGE_HEIGHT = 380;
+    const unsigned MARGIN = 20;
+
+    unsigned currentX = (GetScreenWidth() - ABOUTPAGE_WIDTH) / 2;
+    unsigned currentY = (GetScreenHeight() - ABOUTPAGE_HEIGHT) / 2.0f;
+    state->aboutPage = !GuiWindowBox(
+        (Rectangle) {
+            currentX,
+            currentY,
+            ABOUTPAGE_WIDTH,
+            ABOUTPAGE_HEIGHT
+        },
+        NULL
+    );
+
+    currentY += 58;
+    currentX += MARGIN;
+
+    DrawTextCenter(
+        (Vector2){ currentX, currentY },
+        ABOUTPAGE_WIDTH - MARGIN * 2,
+        "PBL1: Đồ án lập trình tính toán",
+        state->font,
+        28
+    );
+    currentY += 32;
+
+    DrawTextCenter(
+        (Vector2){ currentX, currentY },
+        ABOUTPAGE_WIDTH - MARGIN * 2,
+        "Đề tài 914",
+        state->font,
+        20
+    );
+    currentY += 24;
+
+    DrawTextCenter(
+        (Vector2){ currentX, currentY },
+        ABOUTPAGE_WIDTH - MARGIN * 2,
+        "Tìm đường đi ngắn nhất",
+        state->font,
+        26
+    );
+    currentY += 14;
+
+    GuiLabel(
+        (Rectangle) {currentX, currentY, ABOUTPAGE_WIDTH, 100},
+        "Giáo viên hướng dẫn:"
+    );
+    currentY += 24;
+
+    GuiLabel(
+        (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
+        "Đỗ Thị Tuyết Hoa"
+    );
+    currentY += 35;
+
+    GuiLabel(
+        (Rectangle) {currentX, currentY, ABOUTPAGE_WIDTH, 100},
+        "Sinh viên thực hiện:"
+    );
+    currentY += 24;
+
+    GuiLabel(
+        (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
+        "Trần Đức Minh Nhật"
+    );
+
+    GuiLabel(
+        (Rectangle) {currentX + 215, currentY, ABOUTPAGE_WIDTH, 100},
+        "25T_DT1"
+    );
+
+    currentY += 24;
+
+    GuiLabel(
+        (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
+        "Trần Vi Diệu"
+    );
+
+    GuiLabel(
+        (Rectangle) {currentX + 215, currentY, ABOUTPAGE_WIDTH, 100},
+        "25T_DT4"
+    );
+}
+
 void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, appName);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
@@ -874,7 +1205,7 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     state->springStiffness = 0.7;
     state->coulombConstant = 1200000;
 
-    state->shortestPathResult = -1;
+    state->shortestPathResult = NO_PATH;
 
     int codepoints[1024];
     int count = 0;
@@ -996,6 +1327,7 @@ void GUIUpdate(GUIState *state) {
                 else {
                     state->pathEndVertex = NULL;
                     GUISetStartVert(state);
+                    state->shortestPathResult = NO_PATH;
                 }
             }
             break;
@@ -1110,93 +1442,8 @@ void GUIDraw(GUIState *state) {
         state->statusBar
     );
 
-    const unsigned ABOUTPAGE_WIDTH = 550;
-    const unsigned ABOUTPAGE_HEIGHT = 380;
-    const unsigned MARGIN = 20;
-
-    if(state->aboutPage) {
-        unsigned currentX = (GetScreenWidth() - ABOUTPAGE_WIDTH) / 2;
-        unsigned currentY = (GetScreenHeight() - ABOUTPAGE_HEIGHT) / 2.0f;
-        state->aboutPage = !GuiWindowBox(
-            (Rectangle) {
-                currentX,
-                currentY,
-                ABOUTPAGE_WIDTH,
-                ABOUTPAGE_HEIGHT
-            },
-            NULL
-        );
-
-        currentY += 58;
-        currentX += MARGIN;
-
-        DrawTextCenter(
-            (Vector2){ currentX, currentY },
-            ABOUTPAGE_WIDTH - MARGIN * 2,
-            "PBL1: Đồ án lập trình tính toán",
-            state->font,
-            28
-        );
-        currentY += 32;
-
-        DrawTextCenter(
-            (Vector2){ currentX, currentY },
-            ABOUTPAGE_WIDTH - MARGIN * 2,
-            "Đề tài 914",
-            state->font,
-            20
-        );
-        currentY += 24;
-
-        DrawTextCenter(
-            (Vector2){ currentX, currentY },
-            ABOUTPAGE_WIDTH - MARGIN * 2,
-            "Tìm đường đi ngắn nhất",
-            state->font,
-            26
-        );
-        currentY += 14;
-
-        GuiLabel(
-            (Rectangle) {currentX, currentY, ABOUTPAGE_WIDTH, 100},
-            "Giáo viên hướng dẫn:"
-        );
-        currentY += 24;
-
-        GuiLabel(
-            (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
-            "Đỗ Thị Tuyết Hoa"
-        );
-        currentY += 35;
-
-        GuiLabel(
-            (Rectangle) {currentX, currentY, ABOUTPAGE_WIDTH, 100},
-            "Sinh viên thực hiện:"
-        );
-        currentY += 24;
-
-        GuiLabel(
-            (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
-            "Trần Đức Minh Nhật"
-        );
-
-        GuiLabel(
-            (Rectangle) {currentX + 215, currentY, ABOUTPAGE_WIDTH, 100},
-            "25T_DT1"
-        );
-
-        currentY += 24;
-
-        GuiLabel(
-            (Rectangle) {currentX + 15, currentY, ABOUTPAGE_WIDTH, 100},
-            "Trần Vi Diệu"
-        );
-
-        GuiLabel(
-            (Rectangle) {currentX + 215, currentY, ABOUTPAGE_WIDTH, 100},
-            "25T_DT4"
-        );
-    }
+    DrawPathPage(state);
+    DrawAboutPage(state);
 
     EndDrawing();
 }

@@ -14,6 +14,7 @@ typedef enum {
 
 typedef struct {
     bool aboutPage;
+    bool pathPage;
 
     Camera2D camera;
 
