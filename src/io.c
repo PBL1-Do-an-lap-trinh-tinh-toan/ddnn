@@ -1,4 +1,7 @@
 #include <io.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #define ERR_NONE 0
 #define ERR_FILE_OPEN 1
 #define ERR_INP_FORMAT 2
@@ -75,7 +78,7 @@ int save_graph_as_file(Graph *graph, int *errcode){
         Vertex *vertex = graph->vertices[i];
         for(unsigned j=0; j<vertex->adjacent_count; j++){
             Edge *edge = vertex->adjacents[j];
-            fprintf(file, "%u %u %u\n", edge->origin->id, edge->target->id, edge->weight);
+            fprintf(file, "%u %u %llu\n", edge->origin->id, edge->target->id, edge->weight);
         }
     }
     fclose(file);
