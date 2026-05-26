@@ -3,7 +3,7 @@
 GUIState state;
 
 int main(void) {
-    GUIInit(&state, "ddnn", "access/IBMPlexMono-Regular.ttf");
+    GUIInit(&state, "ddnn", "asset/IBMPlexMono-Regular.ttf");
 
     Graph *g = make_graph(15 * 4);
 

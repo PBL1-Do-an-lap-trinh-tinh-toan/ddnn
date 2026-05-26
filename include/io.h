@@ -1,12 +1,14 @@
 #ifndef IO_H
 #define IO_H
 
-#define ERR_NONE 0
-#define ERR_FILE_OPEN 1
-#define ERR_INP_FORMAT 2
-#define ERR_MEMORY 3
-#define ERR_INVALID_GRAPH 4
-#define ERR_GRAPH_OPEN 5
+typedef enum {
+    ERR_NONE = 0,
+    ERR_FILE_OPEN,
+    ERR_INP_FORMAT,
+    ERR_MEMORY,
+    ERR_INVALID_GRAPH,
+    ERR_GRAPH_OPEN,
+} FileError;
 
 #include <graph.h>
 
@@ -41,14 +43,13 @@
  * @param[errcode] Mã lỗi, được gán khi xảy ra lỗi
  * @return Con trỏ trỏ đến đồ thị được tải, NULL nếu không tải được
  */
-Graph *load_graph_from_file(char *filename, int *errcode);
+Graph *load_graph_from_file(const char *filename, int *errcode);
 
 /**
  * @brief Lưu đồ thị dưới dạng file văn bản
  * @param[graph] Đồ thị cần lưu
  * @param[errcode] Mã lỗi, được gán khi xảy ra lỗi
- * @return 1 nếu thành công, không thì 0
  */
-int save_graph_as_file(Graph *graph, const char *filename, int *errcode);
+void save_graph_as_file(Graph *graph, const char *filename, int *errcode);
 
 #endif

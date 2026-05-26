@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-Graph *load_graph_from_file(char *filename, int *errcode){
+Graph *load_graph_from_file(const char *filename, int *errcode){
 FILE *file = fopen(filename, "r");
 if(file == NULL){
     if(errcode != NULL){
@@ -47,19 +47,20 @@ if(errcode != NULL){
 }
 return graph;
 }
-int save_graph_as_file(Graph *graph, const char *filename, int *errcode){
+void save_graph_as_file(Graph *graph, const char *filename, int *errcode){
     if(graph == NULL){
-        if(errcode != NULL){
-            *errcode = ERR_GRAPH_OPEN;
-        }
-        return 0;
+        *errcode = ERR_GRAPH_OPEN;
+        return;
     }
+    if(graph->vertex_count == 0) {
+        *errcode = ERR_INVALID_GRAPH;
+        return;
+    }
+
     FILE *file = fopen(filename, "w");
     if(file == NULL){
-        if(errcode != NULL){
-            *errcode = ERR_FILE_OPEN;
-        }
-        return 0;
+        *errcode = ERR_FILE_OPEN;
+        return;
     }
     unsigned n = graph->vertex_count;
     unsigned m = 0;
@@ -75,8 +76,6 @@ int save_graph_as_file(Graph *graph, const char *filename, int *errcode){
         }
     }
     fclose(file);
-    if(errcode != NULL){
-        *errcode = ERR_NONE;
-    }
-    return 1;
+
+    *errcode = ERR_NONE;
 }

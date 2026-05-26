@@ -1,13 +1,18 @@
 #include <raylib/raylib.h>
-#include <gui_interface.h>
 
 #define RAYGUI_STATIC
 #define RAYGUI_IMPLEMENTATION
 #include <raylib/raygui.h>
 
+#undef RAYGUI_IMPLEMENTATION
+#define GUI_WINDOW_FILE_DIALOG_IMPLEMENTATION
+#include <gui_interface.h>
+
 #include <graph.h>
 #include <constants.h>
 #include <string.h>
+
+#include <io.h>
 
 const float MARGIN = 5;
 const float ITEM_WIDTH = PANEL_WIDTH - (MARGIN * 2);
@@ -630,8 +635,8 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
     );
     currentY += 23;
 
-    if(state->graph) GuiDisable();
-    GuiButton(
+    if(state->graph || state->fileDialogState.windowActive) GuiDisable();
+    if(GuiButton(
         (Rectangle){
             panelArea->x + MARGIN,
             currentY,
@@ -639,7 +644,8 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
             30
         },
         "Tải đồ thị"
-    );
+    ))
+        state->fileDialogState.windowActive = true;
     GuiEnable();
     if(!state->graph) GuiDisable();
     if(GuiButton(
@@ -1165,6 +1171,9 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetTargetFPS(60);
 
+    state->fileDialogState = InitGuiWindowFileDialog(GetWorkingDirectory());
+    state->fileDialogState.windowActive = false;
+
     state->aboutPage = true;
     state->current_mode = MODE_NORMAL;
 
@@ -1235,14 +1244,66 @@ void GUIUnloadGraph(GUIState *state) {
 }
 
 void GUIUpdate(GUIState *state) {
-    if(IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+    if(state->fileDialogState.SelectFilePressed) {
+        if(IsFileExtension(state->fileDialogState.fileNameText, ".txt")) {
+            char buff[512];
+            strcpy(buff, TextFormat("%s" PATH_SEPERATOR "%s", state->fileDialogState.dirPathText, state->fileDialogState.fileNameText));
+            int err;
+            Graph *graph = load_graph_from_file(buff, &err);
+            switch(err) {
+                case ERR_NONE:
+                    GUILoadGraph(state, graph);
+                    break;
+                case ERR_FILE_OPEN:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        "Không thể tải đồ thị, File không tồn tại"
+                    );
+                    state->fileDialogState.windowActive = true;
+                    break;
+                case ERR_INP_FORMAT:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        "Không thể tải đồ thị, Định dạng file không hợp lệ"
+                    );
+                    break;
+                case ERR_MEMORY:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        "Không thể tải đồ thị, Không đủ bộ nhớ"
+                    );
+                    break;
+                case ERR_INVALID_GRAPH:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        "Không thể tải đồ thị, Đồ thị trống"
+                    );
+                    break;
+            }
+        }
+
+        state->fileDialogState.SelectFilePressed = false;
+    }
+
+    if(state->fileDialogState.windowActive)
+        return;
+
+    if(IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) && !GuiIsLocked()) {
         state->camera.target = Vector2Subtract(
             state->camera.target,
             Vector2Scale(GetMouseDelta(), 1.0f/state->camera.zoom)
         );
     }
 
-    if(state->graph) {
+    if(state->graph && !GuiIsLocked()) {
         Vector2 mousePos = GetMousePosition();
         if(
             mousePos.x < GetScreenWidth() - PANEL_WIDTH
@@ -1274,7 +1335,7 @@ void GUIUpdate(GUIState *state) {
     }
 
     float mouse_wheel = GetMouseWheelMove();
-    if(mouse_wheel != 0) {
+    if(mouse_wheel != 0 && !GuiIsLocked()) {
         Vector2 prevMousePos = GetScreenToWorld2D(GetMousePosition(), state->camera);
 
         if(mouse_wheel > 0 && state->camera.zoom < 3) {
@@ -1291,6 +1352,9 @@ void GUIUpdate(GUIState *state) {
     }
 
     GUIUpdatePhysics(state);
+
+    if(GuiIsLocked())
+        return;
 
     // per mode update
     switch(state->current_mode) {
@@ -1372,6 +1436,10 @@ void GUIDraw(GUIState *state) {
 
     GuiSetFont(state->font);
 
+    if(state->fileDialogState.windowActive) {
+        GuiLock();
+    }
+
     Rectangle panelArea = (Rectangle){
         GetScreenWidth() - PANEL_WIDTH,
         0,
@@ -1430,6 +1498,11 @@ void GUIDraw(GUIState *state) {
 
     DrawPathPage(state);
     DrawAboutPage(state);
+
+    if(state->fileDialogState.windowActive) {
+        GuiUnlock();
+        GuiWindowFileDialog(&state->fileDialogState);
+    }
 
     EndDrawing();
 }
