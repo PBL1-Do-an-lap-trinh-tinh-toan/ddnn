@@ -2,12 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define ERR_NONE 0
-#define ERR_FILE_OPEN 1
-#define ERR_INP_FORMAT 2
-#define ERR_MEMORY 3
-#define ERR_INVALID_GRAPH 4
-#define ERR_GRAPH_OPEN 5
 Graph *load_graph_from_file(char *filename, int *errcode){
 FILE *file = fopen(filename, "r");
 if(file == NULL){
@@ -53,14 +47,13 @@ if(errcode != NULL){
 }
 return graph;
 }
-int save_graph_as_file(Graph *graph, int *errcode){
+int save_graph_as_file(Graph *graph, const char *filename, int *errcode){
     if(graph == NULL){
         if(errcode != NULL){
             *errcode = ERR_GRAPH_OPEN;
         }
         return 0;
     }
-    const char *filename = "doThi.txt";
     FILE *file = fopen(filename, "w");
     if(file == NULL){
         if(errcode != NULL){
