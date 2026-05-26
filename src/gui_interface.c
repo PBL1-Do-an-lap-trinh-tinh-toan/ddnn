@@ -48,11 +48,10 @@ static void GUIDrawOffsettedGrid(Camera2D camera, float spacing) {
 // https://github.com/raysan5/raygui/blob/master/examples/floating_window/floating_window.c
 void GuiWindowFloating(
     Vector2 *position,
-    Vector2 *size,
+    Vector2 size,
     bool *minimized,
     bool *moving,
     void (*draw_content)(Vector2, GUIState*),
-    Vector2 content_size,
     const char* title,
     GUIState* state
 ) {
@@ -73,7 +72,7 @@ void GuiWindowFloating(
         Rectangle title_collision_rect = {
             position->x,
             position->y,
-            size->x - (RAYGUI_WINDOW_CLOSEBUTTON_SIZE + close_title_size_delta_half),
+            size.x - (RAYGUI_WINDOW_CLOSEBUTTON_SIZE + close_title_size_delta_half),
             RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT
         };
 
@@ -93,7 +92,7 @@ void GuiWindowFloating(
 
             // clamp window position keep it inside the application area
             if(position->x < 0) position->x = 0;
-            else if(position->x > GetScreenWidth() - size->x) position->x = GetScreenWidth() - size->x;
+            else if(position->x > GetScreenWidth() - size.x) position->x = GetScreenWidth() - size.x;
             if(position->y < 0) position->y = 0;
             else if(position->y > GetScreenHeight()) position->y = GetScreenHeight() - RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT;
         }
@@ -102,9 +101,9 @@ void GuiWindowFloating(
 
     // window and content drawing with scissor and scroll area
     if(*minimized) {
-        GuiStatusBar((Rectangle){ position->x, position->y, size->x, RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT }, title);
+        GuiStatusBar((Rectangle){ position->x, position->y, size.x, RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT }, title);
 
-        if (GuiButton((Rectangle){ position->x + size->x - RAYGUI_WINDOW_CLOSEBUTTON_SIZE - close_title_size_delta_half,
+        if (GuiButton((Rectangle){ position->x + size.x - RAYGUI_WINDOW_CLOSEBUTTON_SIZE - close_title_size_delta_half,
                                    position->y + close_title_size_delta_half,
                                    RAYGUI_WINDOW_CLOSEBUTTON_SIZE,
                                    RAYGUI_WINDOW_CLOSEBUTTON_SIZE },
@@ -113,32 +112,21 @@ void GuiWindowFloating(
         }
 
     } else {
-        *minimized = GuiWindowBox((Rectangle) { position->x, position->y, size->x, size->y }, title);
+        *minimized = GuiWindowBox((Rectangle) { position->x, position->y, size.x, size.y }, title);
 
         // scissor and draw content within a scroll panel
         if(draw_content != NULL) {
-            Rectangle scissor = { 0 };
             GuiPanel(
                 (Rectangle) {
                     position->x,
                     position->y + RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT,
-                    size->x,
-                    size->y - RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT
+                    size.x,
+                    size.y - RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT
                 },
                 NULL
             );
 
-            bool require_scissor = size->x < content_size.x || size->y < content_size.y;
-
-            if(require_scissor) {
-                BeginScissorMode(scissor.x, scissor.y, scissor.width, scissor.height);
-            }
-
             draw_content(*position, state);
-
-            if(require_scissor) {
-                EndScissorMode();
-            }
         }
     }
 }
@@ -959,22 +947,23 @@ static void _drawPathPage(Vector2 position, GUIState *state) {
     float currentX = position.x + MARGIN;
     float currentY = position.y + MARGIN + RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT;
 
+    if(!state->pathStartVertex || !state->pathEndVertex) {
+        GuiLabel(
+            (Rectangle){ currentX, currentY, 550, 20 },
+            "Chưa chọn đỉnh bắt đầu/kết thúc"
+        );
+        return;
+    }
+
     if(state->shortestPathResult == NO_PATH) {
-        if(state->pathStartVertex && state->pathEndVertex) {
-            GuiLabel(
-                (Rectangle){ currentX, currentY, 550, 20 },
-                TextFormat(
-                    "Không tồn tại đường đi từ đỉnh %d đến đỉnh %d",
-                    state->pathStartVertex->id,
-                    state->pathEndVertex->id
-                )
-            );
-        } else {
-            GuiLabel(
-                (Rectangle){ currentX, currentY, 550, 20 },
-                "Chưa chọn đỉnh bắt đầu/kết thúc"
-            );
-        }
+        GuiLabel(
+            (Rectangle){ currentX, currentY, 550, 20 },
+            TextFormat(
+                "Không tồn tại đường đi từ đỉnh %d đến đỉnh %d",
+                state->pathStartVertex->id,
+                state->pathEndVertex->id
+            )
+        );
         return;
     }
 
@@ -1014,13 +1003,7 @@ static void _drawPathPage(Vector2 position, GUIState *state) {
         Vertex *vert = vertStack[stkTop - 1];
         vertCount++;
 
-        if(vertCount % MAX_VERT_PER_LINE > 0) {
-            snprintf(buffer, 32, "%d", vert->id);
-        } else {
-            snprintf(buffer, 32, "%d", vert->id);
-            currentY += 24;
-            currentX = position.x + MARGIN;
-        }
+        snprintf(buffer, 32, "%d", vert->id);
 
         DrawTextCenter(
             (Vector2){ currentX, currentY },
@@ -1041,6 +1024,11 @@ static void _drawPathPage(Vector2 position, GUIState *state) {
                 20
             );
             currentX += 24;
+        }
+
+        if(vertCount % MAX_VERT_PER_LINE == 0) {
+            currentY += 24;
+            currentX = position.x + MARGIN;
         }
 
         stkTop--;
@@ -1065,18 +1053,16 @@ static void DrawPathPage(GUIState *state) {
     if(!state->pathPage) return;
 
     static Vector2 pagePosition = (Vector2){ 10, 10 };
-    static Vector2 pageSize = (Vector2){ 550, 180 };
     static bool isMoving = false;
 
     bool isMinimized = !state->pathPage;
 
     GuiWindowFloating(
         &pagePosition,
-        &pageSize,
+        (Vector2){550, 180},
         &isMinimized,
         &isMoving,
         _drawPathPage,
-        (Vector2){550, 180},
         "Kết quả",
         state
     );
