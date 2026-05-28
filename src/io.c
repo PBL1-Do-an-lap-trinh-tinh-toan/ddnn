@@ -3,55 +3,51 @@
 #include <stdlib.h>
 
 Graph *load_graph_from_file(const char *filename, int *errcode){
-FILE *file = fopen(filename, "r");
-if(file == NULL){
-    if(errcode != NULL){
-        *errcode = ERR_FILE_OPEN;
+    FILE *file = fopen(filename, "r");
+    if(file == NULL){
+        if(errcode != NULL){
+            *errcode = ERR_FILE_OPEN;
+        }
+        return NULL;
     }
-    return NULL;
-}
-unsigned n, m;
-if(fscanf(file, "%u %u", &n, &m) != 2){
-    if(errcode != NULL){
-        *errcode = ERR_INP_FORMAT;
-    }
-    fclose(file);
-    return NULL;
-}
-Graph *graph = make_graph(n);
-if(graph == NULL){
-    if(errcode != NULL){
-        *errcode = ERR_MEMORY;
-    }
-    fclose(file);
-    return NULL;
-}
-for (int i = 0; i < n; i++) {
-        add_vertex(graph);
-    }
-for(unsigned i=0; i<m; i++){
-    unsigned u, v, w;
-    if(fscanf(file, "%u %u %u", &u, &v, &w) != 3){
+    unsigned n, m;
+    if(fscanf(file, "%u %u", &n, &m) != 2){
         if(errcode != NULL){
             *errcode = ERR_INP_FORMAT;
         }
-        delete_graph(graph);
         fclose(file);
         return NULL;
     }
-    make_edge(graph->vertices[u], graph->vertices[v], w);
-}
-fclose(file);
-if(errcode != NULL){
-    *errcode = ERR_NONE;
-}
-return graph;
+    Graph *graph = make_graph(n);
+    if(graph == NULL){
+        if(errcode != NULL){
+            *errcode = ERR_MEMORY;
+        }
+        fclose(file);
+        return NULL;
+    }
+    for (int i = 0; i < n; i++) {
+            add_vertex(graph);
+        }
+    for(unsigned i=0; i<m; i++){
+        unsigned u, v, w;
+        if(fscanf(file, "%u %u %u", &u, &v, &w) != 3){
+            if(errcode != NULL){
+                *errcode = ERR_INP_FORMAT;
+            }
+            delete_graph(graph);
+            fclose(file);
+            return NULL;
+        }
+        make_edge(graph->vertices[u], graph->vertices[v], w);
+    }
+    fclose(file);
+    if(errcode != NULL){
+        *errcode = ERR_NONE;
+    }
+    return graph;
 }
 void save_graph_as_file(Graph *graph, const char *filename, int *errcode){
-    if(graph == NULL){
-        *errcode = ERR_GRAPH_OPEN;
-        return;
-    }
     if(graph->vertex_count == 0) {
         *errcode = ERR_INVALID_GRAPH;
         return;

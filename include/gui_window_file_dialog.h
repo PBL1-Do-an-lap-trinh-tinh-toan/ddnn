@@ -272,10 +272,12 @@ void GuiWindowFileDialog(GuiWindowFileDialogState *state)
 
         // Draw window and controls
         //----------------------------------------------------------------------------------------
-        state->windowActive = !GuiWindowBox(state->windowBounds, "#198# Select File Dialog");
+        const char *windowTitle = state->saveFileMode ? "#198# Lưu file" : "#198# Chọn file";
+state->windowActive = !GuiWindowBox(state->windowBounds, windowTitle);
+        state->windowActive = !GuiWindowBox(state->windowBounds, windowTitle);
 
         // Draw previous directory button + logic
-        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 48, state->windowBounds.y + 24 + 12, 40, 24 }, "< .."))
+        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 48, state->windowBounds.y + 24 + 12, 40, 24 }, "<<"))
         {
             // Move dir path one level up
             strcpy(state->dirPathText, GetPrevDirectoryPath(state->dirPathText));
@@ -349,7 +351,7 @@ void GuiWindowFileDialog(GuiWindowFileDialogState *state)
 
         // Draw bottom controls
         //--------------------------------------------------------------------------------------
-        GuiLabel((Rectangle){ state->windowBounds.x + 8, state->windowBounds.y + state->windowBounds.height - 68, 60, 24 }, "File name:");
+        GuiLabel((Rectangle){ state->windowBounds.x + 8, state->windowBounds.y + state->windowBounds.height - 68, 60, 24 }, "Tên:");
         if (GuiTextBox((Rectangle){ state->windowBounds.x + 72, state->windowBounds.y + state->windowBounds.height - 68, state->windowBounds.width - 184, 24 }, state->fileNameText, 128, state->fileNameEditMode))
         {
             if (*state->fileNameText)
@@ -377,12 +379,29 @@ void GuiWindowFileDialog(GuiWindowFileDialogState *state)
             state->fileNameEditMode = !state->fileNameEditMode;
         }
 
-        GuiLabel((Rectangle){ state->windowBounds.x + 8, state->windowBounds.y + state->windowBounds.height - 24 - 12, 68, 24 }, "File filter:");
-        GuiComboBox((Rectangle){ state->windowBounds.x + 72, state->windowBounds.y + state->windowBounds.height - 24 - 12, state->windowBounds.width - 184, 24 }, "All files", &state->fileTypeActive);
+        GuiLabel((Rectangle){ state->windowBounds.x + 8, state->windowBounds.y + state->windowBounds.height - 24 - 12, 68, 24 }, "Bộ lọc:");
+        static int oldFilterIndex = -1;
+        GuiComboBox((Rectangle){ state->windowBounds.x + 72, state->windowBounds.y + state->windowBounds.height - 24 - 12, state->windowBounds.width - 184, 24 }, "Tất cả;*.txt", &state->fileTypeActive);
 
-        state->SelectFilePressed = GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 96 - 8, state->windowBounds.y + state->windowBounds.height - 68, 96, 24 }, "Select");
+        if (state->fileTypeActive != oldFilterIndex)
+        {
+            if (state->fileTypeActive == 0)
+            {
+                state->filterExt[0] = '\0';
+            }
+            else
+            {
+                strcpy(state->filterExt, ".txt");
+            }
 
-        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 96 - 8, state->windowBounds.y + state->windowBounds.height - 24 - 12, 96, 24 }, "Cancel")) state->windowActive = false;
+            ReloadDirectoryFiles(state);
+            state->filesListActive = -1;
+            oldFilterIndex = state->fileTypeActive;
+        }
+
+        state->SelectFilePressed = GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 96 - 8, state->windowBounds.y + state->windowBounds.height - 68, 96, 24 }, "Chọn");
+
+        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 96 - 8, state->windowBounds.y + state->windowBounds.height - 24 - 12, 96, 24 }, "Huỷ")) state->windowActive = false;
         //--------------------------------------------------------------------------------------
 
         // Exit on file selected

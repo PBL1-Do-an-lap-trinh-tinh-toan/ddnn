@@ -644,14 +644,36 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
             30
         },
         "Tải đồ thị"
-    ))
+    )) {
+        state->fileDialogState.saveFileMode = false;
         state->fileDialogState.windowActive = true;
+    }
     GuiEnable();
+
+    if(!state->graph || state->fileDialogState.windowActive) GuiDisable();
+    if(GuiButton(
+        (Rectangle){
+            panelArea->x + (ITEM_WIDTH - 5) / 2 + MARGIN * 2,
+            currentY,
+            (ITEM_WIDTH - 5) / 2,
+            30
+        },
+        "Lưu đồ thị"
+    )) {
+        state->fileDialogState.saveFileMode = true;
+        state->fileDialogState.windowActive = true;
+    }
+    GuiEnable();
+    currentY += 35;
+
     if(!state->graph) GuiDisable();
     if(GuiButton(
-        (Rectangle){ panelArea->x + (
-            ITEM_WIDTH - 5
-        ) / 2 + MARGIN * 2, currentY, (ITEM_WIDTH - 5) / 2, 30 },
+        (Rectangle){
+            panelArea->x + MARGIN,
+            currentY,
+            ITEM_WIDTH,
+            30
+        },
         "Gỡ đồ thị"
     )) {
         GUIUnloadGraph(state);
@@ -1245,21 +1267,57 @@ void GUIUnloadGraph(GUIState *state) {
 
 void GUIUpdate(GUIState *state) {
     if(state->fileDialogState.SelectFilePressed) {
-        if(IsFileExtension(state->fileDialogState.fileNameText, ".txt")) {
+        if(state->fileDialogState.saveFileMode) {
+            const char *ext = GetFileExtension(state->fileDialogState.fileNameText);
+            if(!ext) {
+                strcat(state->fileDialogState.fileNameText, ".txt");
+            }
+        }
+
+        if(!IsFileExtension(state->fileDialogState.fileNameText, ".txt")) {
+            snprintf(
+                state->statusBar,
+                sizeof(state->statusBar),
+                "%s",
+                "Tên file phải có đuôi .txt"
+            );
+        } else {
             char buff[512];
             strcpy(buff, TextFormat("%s" PATH_SEPERATOR "%s", state->fileDialogState.dirPathText, state->fileDialogState.fileNameText));
             int err;
-            Graph *graph = load_graph_from_file(buff, &err);
+            bool saving = state->fileDialogState.saveFileMode;
+            if(!saving) {
+                Graph *graph = load_graph_from_file(buff, &err);
+                if(err == ERR_NONE) {
+                    GUILoadGraph(state, graph);
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s \"%s\"",
+                        "Đã tải file",
+                        buff
+                    );
+                }
+            } else {
+                save_graph_as_file(state->graph, buff, &err);
+                if(err == ERR_NONE)
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s \"%s\"",
+                        "Lưu thành công đồ thị vào file",
+                        buff
+                    );
+            }
             switch(err) {
                 case ERR_NONE:
-                    GUILoadGraph(state, graph);
                     break;
                 case ERR_FILE_OPEN:
                     snprintf(
                         state->statusBar,
                         sizeof(state->statusBar),
                         "%s",
-                        "Không thể tải đồ thị, File không tồn tại"
+                        (!saving) ? "Không thể tải đồ thị, file không tồn tại" : "Không thể mở file để lưu"
                     );
                     state->fileDialogState.windowActive = true;
                     break;
@@ -1268,7 +1326,7 @@ void GUIUpdate(GUIState *state) {
                         state->statusBar,
                         sizeof(state->statusBar),
                         "%s",
-                        "Không thể tải đồ thị, Định dạng file không hợp lệ"
+                        "Không thể tải đồ thị, định dạng file không hợp lệ"
                     );
                     break;
                 case ERR_MEMORY:
@@ -1276,7 +1334,7 @@ void GUIUpdate(GUIState *state) {
                         state->statusBar,
                         sizeof(state->statusBar),
                         "%s",
-                        "Không thể tải đồ thị, Không đủ bộ nhớ"
+                        "Không thể tải đồ thị, không đủ bộ nhớ"
                     );
                     break;
                 case ERR_INVALID_GRAPH:
@@ -1284,7 +1342,7 @@ void GUIUpdate(GUIState *state) {
                         state->statusBar,
                         sizeof(state->statusBar),
                         "%s",
-                        "Không thể tải đồ thị, Đồ thị trống"
+                        (!saving) ? "Không thể tải đồ thị, đồ thị trống" : "Không thể lưu đồ thị, đồ thị trống"
                     );
                     break;
             }

@@ -7,7 +7,6 @@ typedef enum {
     ERR_INP_FORMAT,
     ERR_MEMORY,
     ERR_INVALID_GRAPH,
-    ERR_GRAPH_OPEN,
 } FileError;
 
 #include <graph.h>
