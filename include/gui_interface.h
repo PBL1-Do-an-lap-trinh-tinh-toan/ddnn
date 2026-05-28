@@ -4,6 +4,7 @@
 #include <raylib/raylib.h>
 #include <graph.h>
 #include <physics.h>
+#include <gui_window_file_dialog.h>
 
 typedef enum {
     MODE_NORMAL,
@@ -17,6 +18,8 @@ typedef struct {
     bool pathPage;
 
     Camera2D camera;
+
+    GuiWindowFileDialogState fileDialogState;
 
     GUIMode current_mode;
 

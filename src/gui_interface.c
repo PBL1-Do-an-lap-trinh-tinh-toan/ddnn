@@ -1,13 +1,18 @@
 #include <raylib/raylib.h>
-#include <gui_interface.h>
 
 #define RAYGUI_STATIC
 #define RAYGUI_IMPLEMENTATION
 #include <raylib/raygui.h>
 
+#undef RAYGUI_IMPLEMENTATION
+#define GUI_WINDOW_FILE_DIALOG_IMPLEMENTATION
+#include <gui_interface.h>
+
 #include <graph.h>
 #include <constants.h>
 #include <string.h>
+
+#include <io.h>
 
 const float MARGIN = 5;
 const float ITEM_WIDTH = PANEL_WIDTH - (MARGIN * 2);
@@ -630,8 +635,8 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
     );
     currentY += 23;
 
-    if(state->graph) GuiDisable();
-    GuiButton(
+    if(state->graph || state->fileDialogState.windowActive) GuiDisable();
+    if(GuiButton(
         (Rectangle){
             panelArea->x + MARGIN,
             currentY,
@@ -639,13 +644,36 @@ static void GUIDrawNormalView(GUIState *state, Rectangle *panelArea) {
             30
         },
         "Tải đồ thị"
-    );
+    )) {
+        state->fileDialogState.saveFileMode = false;
+        state->fileDialogState.windowActive = true;
+    }
     GuiEnable();
+
+    if(!state->graph || state->fileDialogState.windowActive) GuiDisable();
+    if(GuiButton(
+        (Rectangle){
+            panelArea->x + (ITEM_WIDTH - 5) / 2 + MARGIN * 2,
+            currentY,
+            (ITEM_WIDTH - 5) / 2,
+            30
+        },
+        "Lưu đồ thị"
+    )) {
+        state->fileDialogState.saveFileMode = true;
+        state->fileDialogState.windowActive = true;
+    }
+    GuiEnable();
+    currentY += 35;
+
     if(!state->graph) GuiDisable();
     if(GuiButton(
-        (Rectangle){ panelArea->x + (
-            ITEM_WIDTH - 5
-        ) / 2 + MARGIN * 2, currentY, (ITEM_WIDTH - 5) / 2, 30 },
+        (Rectangle){
+            panelArea->x + MARGIN,
+            currentY,
+            ITEM_WIDTH,
+            30
+        },
         "Gỡ đồ thị"
     )) {
         GUIUnloadGraph(state);
@@ -1165,6 +1193,9 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetTargetFPS(60);
 
+    state->fileDialogState = InitGuiWindowFileDialog(GetWorkingDirectory());
+    state->fileDialogState.windowActive = false;
+
     state->aboutPage = true;
     state->current_mode = MODE_NORMAL;
 
@@ -1235,14 +1266,102 @@ void GUIUnloadGraph(GUIState *state) {
 }
 
 void GUIUpdate(GUIState *state) {
-    if(IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+    if(state->fileDialogState.SelectFilePressed) {
+        if(state->fileDialogState.saveFileMode) {
+            const char *ext = GetFileExtension(state->fileDialogState.fileNameText);
+            if(!ext) {
+                strcat(state->fileDialogState.fileNameText, ".txt");
+            }
+        }
+
+        if(!IsFileExtension(state->fileDialogState.fileNameText, ".txt")) {
+            snprintf(
+                state->statusBar,
+                sizeof(state->statusBar),
+                "%s",
+                "Tên file phải có đuôi .txt"
+            );
+        } else {
+            char buff[512];
+            strcpy(buff, TextFormat("%s" PATH_SEPERATOR "%s", state->fileDialogState.dirPathText, state->fileDialogState.fileNameText));
+            int err;
+            bool saving = state->fileDialogState.saveFileMode;
+            if(!saving) {
+                Graph *graph = load_graph_from_file(buff, &err);
+                if(err == ERR_NONE) {
+                    GUILoadGraph(state, graph);
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s \"%s\"",
+                        "Đã tải file",
+                        buff
+                    );
+                }
+            } else {
+                save_graph_as_file(state->graph, buff, &err);
+                if(err == ERR_NONE)
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s \"%s\"",
+                        "Lưu thành công đồ thị vào file",
+                        buff
+                    );
+            }
+            switch(err) {
+                case ERR_NONE:
+                    break;
+                case ERR_FILE_OPEN:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        (!saving) ? "Không thể tải đồ thị, file không tồn tại" : "Không thể mở file để lưu"
+                    );
+                    state->fileDialogState.windowActive = true;
+                    break;
+                case ERR_INP_FORMAT:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        "Không thể tải đồ thị, định dạng file không hợp lệ"
+                    );
+                    break;
+                case ERR_MEMORY:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        "Không thể tải đồ thị, không đủ bộ nhớ"
+                    );
+                    break;
+                case ERR_INVALID_GRAPH:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        (!saving) ? "Không thể tải đồ thị, đồ thị trống" : "Không thể lưu đồ thị, đồ thị trống"
+                    );
+                    break;
+            }
+        }
+
+        state->fileDialogState.SelectFilePressed = false;
+    }
+
+    if(state->fileDialogState.windowActive)
+        return;
+
+    if(IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) && !GuiIsLocked()) {
         state->camera.target = Vector2Subtract(
             state->camera.target,
             Vector2Scale(GetMouseDelta(), 1.0f/state->camera.zoom)
         );
     }
 
-    if(state->graph) {
+    if(state->graph && !GuiIsLocked()) {
         Vector2 mousePos = GetMousePosition();
         if(
             mousePos.x < GetScreenWidth() - PANEL_WIDTH
@@ -1274,7 +1393,7 @@ void GUIUpdate(GUIState *state) {
     }
 
     float mouse_wheel = GetMouseWheelMove();
-    if(mouse_wheel != 0) {
+    if(mouse_wheel != 0 && !GuiIsLocked()) {
         Vector2 prevMousePos = GetScreenToWorld2D(GetMousePosition(), state->camera);
 
         if(mouse_wheel > 0 && state->camera.zoom < 3) {
@@ -1291,6 +1410,9 @@ void GUIUpdate(GUIState *state) {
     }
 
     GUIUpdatePhysics(state);
+
+    if(GuiIsLocked())
+        return;
 
     // per mode update
     switch(state->current_mode) {
@@ -1372,6 +1494,10 @@ void GUIDraw(GUIState *state) {
 
     GuiSetFont(state->font);
 
+    if(state->fileDialogState.windowActive) {
+        GuiLock();
+    }
+
     Rectangle panelArea = (Rectangle){
         GetScreenWidth() - PANEL_WIDTH,
         0,
@@ -1430,6 +1556,11 @@ void GUIDraw(GUIState *state) {
 
     DrawPathPage(state);
     DrawAboutPage(state);
+
+    if(state->fileDialogState.windowActive) {
+        GuiUnlock();
+        GuiWindowFileDialog(&state->fileDialogState);
+    }
 
     EndDrawing();
 }
