@@ -53,6 +53,8 @@ typedef struct {
 } GUIState;
 
 // gui_graph_action.c
+bool GUILoadGraph(GUIState *state, Graph *graph);
+void GUIUnloadGraph(GUIState *state);
 void GUIFindShortestPath(GUIState *state);
 void GUISetStartVert(GUIState *state);
 void GUISetEndVert(GUIState *state);
@@ -74,7 +76,7 @@ void GUIDrawCreateEdge(GUIState *state, Rectangle *panelArea);
 void GUIDrawPathPage(GUIState *state);
 void GUIDrawAboutPage(GUIState *state);
 
-// gui_interface.c
+// gui.c
 void GUIInit(GUIState *state, const char *appName, const char *fontFile);
 bool GUILoadGraph(GUIState *state, Graph *graph);
 void GUIUnloadGraph(GUIState *state);

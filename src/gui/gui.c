@@ -5,7 +5,7 @@
 
 #undef RAYGUI_IMPLEMENTATION
 #define GUI_WINDOW_FILE_DIALOG_IMPLEMENTATION
-#include <gui_interface.h>
+#include <gui.h>
 
 #include <graph.h>
 #include <constants.h>
@@ -197,36 +197,6 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
 
     snprintf(state->statusBar, sizeof(state->statusBar), "%s", "");
-}
-
-bool GUILoadGraph(GUIState *state, Graph *graph) {
-    state->graph = graph;
-
-    float boundsSize = state->springLength * graph->vertex_count / 3.0;
-    for(unsigned i = 0; i < graph->vertex_count; i++) {
-        Vertex *vert = graph->vertices[i];
-        BodyInit(state->graph->vertices[i]);
-        vert->position.x = (GetRandomValue(-500, 500) / 500.0) * boundsSize;
-        vert->position.y = (GetRandomValue(-500, 500) / 500.0) * boundsSize;
-    }
-    state->currentTemperature = INITIAL_TEMPERATURE;
-
-    snprintf(state->statusBar, sizeof(state->statusBar), "%s", "Đã tải đồ thị");
-
-    return 1;
-}
-
-void GUIUnloadGraph(GUIState *state) {
-    delete_graph(state->graph);
-
-    state->graph = NULL;
-    state->pathStartVertex = NULL;
-    state->pathEndVertex = NULL;
-    state->selectedVertex = NULL;
-    state->selectedEdge = NULL;
-    state->draggingVertex = NULL;
-
-    snprintf(state->statusBar, sizeof(state->statusBar), "%s", "Đã gỡ đồ thị");
 }
 
 void GUIUpdate(GUIState *state) {

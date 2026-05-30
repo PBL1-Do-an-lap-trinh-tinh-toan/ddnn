@@ -1,6 +1,6 @@
 #define RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT 24
 #include <raylib/raygui.h>
-#include <gui_interface.h>
+#include <gui.h>
 
 #include <graph.h>
 #include <stdio.h>

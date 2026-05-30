@@ -1,5 +1,5 @@
 #include <raylib/raygui.h>
-#include <gui_interface.h>
+#include <gui.h>
 
 #include <graph.h>
 #include <string.h>

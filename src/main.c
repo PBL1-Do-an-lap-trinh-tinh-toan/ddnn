@@ -1,4 +1,4 @@
-#include <gui_interface.h>
+#include <gui.h>
 
 GUIState state;
 
