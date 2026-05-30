@@ -42,16 +42,28 @@ void delete_graph(Graph *graph) {
     free(graph);
 }
 
-Vertex *add_vertex(Graph *graph) {
+Vertex *add_vertex(Graph *graph, int id) {
     if(graph->vertex_count == graph->max_vertex_count)
         return NULL;
+
+    if(id >= 0) {
+        int existed_idx = find_vertex(graph, id);
+        if(existed_idx >= 0)
+            return graph->vertices[existed_idx];
+    }
 
     Vertex *new_vertex = (Vertex*)malloc(sizeof(Vertex));
     if(!new_vertex)
         return NULL;
 
     // khoi tao cac gia tri ban dau
-    new_vertex->id = graph->unique_id++;
+    if(id >= 0) {
+        new_vertex->id = id;
+        if(id >= graph->unique_id)
+            graph->unique_id = id + 1;
+    } else {
+        new_vertex->id = graph->unique_id++;
+    }
     new_vertex->adjacent_count = 0;
     new_vertex->max_adjacent_count = graph->max_vertex_count - 1;
     new_vertex->adjacents = (Edge**)malloc(new_vertex->max_adjacent_count * sizeof(Edge*));
@@ -202,9 +214,9 @@ void heap_clear() {
 }
 
 weight_unit_t shortest_path(Graph *graph, Vertex *start, Vertex *end) {
-    weight_unit_t *d = (weight_unit_t*)malloc(graph->unique_id*sizeof(weight_unit_t));
+    weight_unit_t *d = (weight_unit_t*)malloc(graph->max_vertex_count*sizeof(weight_unit_t));
     if(!d) return -1;
-    for(unsigned i = 0; i<graph->unique_id; i++) {
+    for(unsigned i = 0; i<graph->max_vertex_count; i++) {
         d[i] = NO_PATH;
     }
 

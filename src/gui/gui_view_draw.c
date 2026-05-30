@@ -20,7 +20,7 @@ static void TogglePhysicsSim(GUIState *state) {
     }
 }
 
-void ShuffleVert(GUIState *state) {
+static void ShuffleVert(GUIState *state) {
     if(!state->graph) return;
     
     SetRandomSeed((unsigned)GetTime());

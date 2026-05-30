@@ -199,6 +199,38 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     snprintf(state->statusBar, sizeof(state->statusBar), "%s", "");
 }
 
+int GUILoadGraphFromFile(GUIState *state, const char *filepath) {
+    int ret_err;
+    Graph *graph = load_graph_from_file(filepath, &ret_err);
+    if(ret_err == ERR_NONE) {
+        GUILoadGraph(state, graph);
+        snprintf(
+            state->statusBar,
+            sizeof(state->statusBar),
+            "%s \"%s\"",
+            "Đã tải file",
+            filepath
+        );
+    }
+
+    return ret_err;
+}
+
+int GUISaveGraphToFile(GUIState *state, const char *filepath) {
+    int ret_err;
+    save_graph_as_file(state->graph, filepath, &ret_err);
+    if(ret_err == ERR_NONE)
+        snprintf(
+            state->statusBar,
+            sizeof(state->statusBar),
+            "%s \"%s\"",
+            "Lưu thành công đồ thị vào file",
+            filepath
+        );
+
+    return ret_err;
+}
+
 void GUIUpdate(GUIState *state) {
     if(state->fileDialogState.SelectFilePressed) {
         if(state->fileDialogState.saveFileMode) {
@@ -216,33 +248,17 @@ void GUIUpdate(GUIState *state) {
                 "Tên file phải có đuôi .txt"
             );
         } else {
-            char buff[512];
-            strcpy(buff, TextFormat("%s" PATH_SEPERATOR "%s", state->fileDialogState.dirPathText, state->fileDialogState.fileNameText));
-            int err;
+            char filepath[512];
+            strcpy(filepath, TextFormat("%s" PATH_SEPERATOR "%s", state->fileDialogState.dirPathText, state->fileDialogState.fileNameText));
+
             bool saving = state->fileDialogState.saveFileMode;
-            if(!saving) {
-                Graph *graph = load_graph_from_file(buff, &err);
-                if(err == ERR_NONE) {
-                    GUILoadGraph(state, graph);
-                    snprintf(
-                        state->statusBar,
-                        sizeof(state->statusBar),
-                        "%s \"%s\"",
-                        "Đã tải file",
-                        buff
-                    );
-                }
-            } else {
-                save_graph_as_file(state->graph, buff, &err);
-                if(err == ERR_NONE)
-                    snprintf(
-                        state->statusBar,
-                        sizeof(state->statusBar),
-                        "%s \"%s\"",
-                        "Lưu thành công đồ thị vào file",
-                        buff
-                    );
-            }
+
+            int err;
+            if(!saving)
+                err = GUILoadGraphFromFile(state, filepath);
+            else
+                err = GUISaveGraphToFile(state, filepath);
+
             switch(err) {
                 case ERR_NONE:
                     break;

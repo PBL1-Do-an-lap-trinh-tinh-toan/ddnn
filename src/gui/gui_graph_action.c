@@ -198,7 +198,7 @@ void GUIAddVertex(GUIState *state) {
     }
 
     if(state->graph) {
-        Vertex *new_vert = add_vertex(state->graph);
+        Vertex *new_vert = add_vertex(state->graph, -1);
         if(!new_vert) {
             snprintf(state->statusBar, sizeof(state->statusBar), "%s", "Đã đạt số lượng đỉnh tối đa");
         } else {
