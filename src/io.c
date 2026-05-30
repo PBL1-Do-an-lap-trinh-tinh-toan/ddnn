@@ -47,6 +47,7 @@ Graph *load_graph_from_file(const char *filename, int *errcode){
     }
     return graph;
 }
+
 void save_graph_as_file(Graph *graph, const char *filename, int *errcode){
     if(graph->vertex_count == 0) {
         *errcode = ERR_INVALID_GRAPH;

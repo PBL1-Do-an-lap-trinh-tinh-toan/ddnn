@@ -11,7 +11,11 @@ else
     CLEAN_CMD = rm -f $(TARGET) $(TEST_BINS)
 endif
 
-GUI_SRC = src/physics.c src/gui_interface.c
+GUI_SRC = src/physics.c \
+		  src/gui_interface/gui_interface.c \
+		  src/gui_interface/gui_graph_action.c \
+		  src/gui_interface/gui_graph_draw.c \
+		  src/gui_interface/gui_view_draw.c
 LOGIC_SRC = src/graph.c src/io.c
 TEST_FILES = $(wildcard tests/*.c)
 TEST_BINS = $(TEST_FILES:tests/%.c=%$(EXT))

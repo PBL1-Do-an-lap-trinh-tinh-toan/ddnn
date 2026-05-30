@@ -6,6 +6,10 @@
 #include <physics.h>
 #include <gui_window_file_dialog.h>
 
+#define MARGIN 5
+#define ITEM_WIDTH (PANEL_WIDTH - (MARGIN * 2))
+#define START_Y 39
+
 typedef enum {
     MODE_NORMAL,
     MODE_VERTEX_INSPECT,
@@ -35,6 +39,7 @@ typedef struct {
 
     bool physicsEnabled;
 
+    float currentTemperature;
     float springLength;
     float springStiffness;
     float coulombConstant;
@@ -47,14 +52,33 @@ typedef struct {
 
 } GUIState;
 
+// gui_graph_action.c
+void GUIFindShortestPath(GUIState *state);
+void GUISetStartVert(GUIState *state);
+void GUISetEndVert(GUIState *state);
+void GUISwapStartEndVert(GUIState *state);
+void GUIAddEdge(GUIState *state, Vertex *startVert, Vertex *endVert);
+void GUIDeleteEdge(GUIState *state);
+void GUIReverseEdge(GUIState *state);
+void GUIAddVertex(GUIState *state);
+void GUIDeleteVert(GUIState *state);
+
+// gui_graph_draw.c
+void GUIDrawGraph(GUIState *state);
+
+// gui_view_draw.c
+void GUIDrawNormalView(GUIState *state, Rectangle *panelArea);
+void GUIDrawVertexInspect(GUIState *state, Rectangle *panelArea);
+void GUIDrawEdgeInspect(GUIState *state, Rectangle *panelArea);
+void GUIDrawCreateEdge(GUIState *state, Rectangle *panelArea);
+void GUIDrawPathPage(GUIState *state);
+void GUIDrawAboutPage(GUIState *state);
+
+// gui_interface.c
 void GUIInit(GUIState *state, const char *appName, const char *fontFile);
-
 bool GUILoadGraph(GUIState *state, Graph *graph);
-
 void GUIUnloadGraph(GUIState *state);
-
 void GUIUpdate(GUIState *state);
-
 void GUIDraw(GUIState *state);
 
 #endif
