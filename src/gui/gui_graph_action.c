@@ -169,6 +169,7 @@ void GUIReverseEdge(GUIState *state) {
 
     if(new_edge) {
         remove_edge(state->selectedEdge);
+        GUIFindShortestPath(state);
         state->selectedEdge = new_edge;
         snprintf(state->statusBar, sizeof(state->statusBar), "%s", TextFormat(
             "Đã đảo chiều cạnh %u -> %u thành %u -> %u",
