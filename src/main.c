@@ -1,4 +1,4 @@
-#include <gui_interface.h>
+#include <gui.h>
 
 GUIState state;
 
@@ -7,21 +7,21 @@ int main(void) {
 
     Graph *g = make_graph(15 * 4);
 
-    Vertex *V1  = add_vertex(g);
-    Vertex *V2  = add_vertex(g);
-    Vertex *V3  = add_vertex(g);
-    Vertex *V4  = add_vertex(g);
-    Vertex *V5  = add_vertex(g);
-    Vertex *V6  = add_vertex(g);
-    Vertex *V7  = add_vertex(g);
-    Vertex *V8  = add_vertex(g);
-    Vertex *V9  = add_vertex(g);
-    Vertex *V10 = add_vertex(g);
-    Vertex *V11 = add_vertex(g);
-    Vertex *V12 = add_vertex(g);
-    Vertex *V13 = add_vertex(g);
-    Vertex *V14 = add_vertex(g);
-    Vertex *V15 = add_vertex(g);
+    Vertex *V1  = add_vertex(g, -1);
+    Vertex *V2  = add_vertex(g, -1);
+    Vertex *V3  = add_vertex(g, -1);
+    Vertex *V4  = add_vertex(g, -1);
+    Vertex *V5  = add_vertex(g, -1);
+    Vertex *V6  = add_vertex(g, -1);
+    Vertex *V7  = add_vertex(g, -1);
+    Vertex *V8  = add_vertex(g, -1);
+    Vertex *V9  = add_vertex(g, -1);
+    Vertex *V10 = add_vertex(g, -1);
+    Vertex *V11 = add_vertex(g, -1);
+    Vertex *V12 = add_vertex(g, -1);
+    Vertex *V13 = add_vertex(g, -1);
+    Vertex *V14 = add_vertex(g, -1);
+    Vertex *V15 = add_vertex(g, -1);
 
     make_edge(V1, V2, 2);
     make_edge(V1, V3, 5);

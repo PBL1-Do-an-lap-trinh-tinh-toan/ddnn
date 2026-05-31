@@ -5,11 +5,11 @@
 
 void test0() {
     Graph *g = make_graph(5);
-    Vertex *A = add_vertex(g);
-    Vertex *B = add_vertex(g);
-    Vertex *C = add_vertex(g);
-    Vertex *D = add_vertex(g);
-    Vertex *E = add_vertex(g);
+    Vertex *A = add_vertex(g, -1);
+    Vertex *B = add_vertex(g, -1);
+    Vertex *C = add_vertex(g, -1);
+    Vertex *D = add_vertex(g, -1);
+    Vertex *E = add_vertex(g, -1);
 
     make_edge(A, B, 10);
     make_edge(A, C, 3);
@@ -40,7 +40,7 @@ void test1() {
     
     Vertex *V[10];
     for (int i = 0; i < 10; i++) {
-        V[i] = add_vertex(g);
+        V[i] = add_vertex(g, -1);
     }
 
     make_edge(V[0], V[1], 4);

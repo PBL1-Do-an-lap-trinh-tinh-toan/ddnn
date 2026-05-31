@@ -1,3 +1,4 @@
+#include "graph.h"
 #include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,7 @@ Graph *load_graph_from_file(const char *filename, int *errcode){
         }
         return NULL;
     }
+
     unsigned n, m;
     if(fscanf(file, "%u %u", &n, &m) != 2){
         if(errcode != NULL){
@@ -18,7 +20,13 @@ Graph *load_graph_from_file(const char *filename, int *errcode){
         fclose(file);
         return NULL;
     }
-    Graph *graph = make_graph(n);
+
+    unsigned id[n];
+    for(int i = 0; i < n; i++) {
+        fscanf(file, "%u", id + i);
+    }
+
+    Graph *graph = make_graph(n + 100);
     if(graph == NULL){
         if(errcode != NULL){
             *errcode = ERR_MEMORY;
@@ -26,12 +34,15 @@ Graph *load_graph_from_file(const char *filename, int *errcode){
         fclose(file);
         return NULL;
     }
+
     for (int i = 0; i < n; i++) {
-            add_vertex(graph);
-        }
+        add_vertex(graph, id[i]);
+    }
+
     for(unsigned i=0; i<m; i++){
-        unsigned u, v, w;
-        if(fscanf(file, "%u %u %u", &u, &v, &w) != 3){
+        unsigned u, v;
+        weight_unit_t w;
+        if(fscanf(file, "%u %u %llu", &u, &v, &w) != 3){
             if(errcode != NULL){
                 *errcode = ERR_INP_FORMAT;
             }
@@ -39,14 +50,27 @@ Graph *load_graph_from_file(const char *filename, int *errcode){
             fclose(file);
             return NULL;
         }
-        make_edge(graph->vertices[u], graph->vertices[v], w);
+        int u_idx = find_vertex(graph, u);
+        int v_idx = find_vertex(graph, v);
+        if(u_idx >= 0 && v_idx >= 0) {
+            make_edge(graph->vertices[u_idx], graph->vertices[v_idx], w);
+        } else {
+            if(errcode != NULL){
+                *errcode = ERR_INP_FORMAT; // Or create a new ERR_VERTEX_NOT_FOUND
+            }
+            delete_graph(graph);
+            fclose(file);
+            return NULL;
+        }
     }
+
     fclose(file);
     if(errcode != NULL){
         *errcode = ERR_NONE;
     }
     return graph;
 }
+
 void save_graph_as_file(Graph *graph, const char *filename, int *errcode){
     if(graph->vertex_count == 0) {
         *errcode = ERR_INVALID_GRAPH;
@@ -58,12 +82,21 @@ void save_graph_as_file(Graph *graph, const char *filename, int *errcode){
         *errcode = ERR_FILE_OPEN;
         return;
     }
+
     unsigned n = graph->vertex_count;
     unsigned m = 0;
+    unsigned id[n];
     for(unsigned i=0; i<n; i++){
         m += graph->vertices[i]->adjacent_count;
+        id[i] = graph->vertices[i]->id;
     }
+
     fprintf(file, "%u %u\n", n, m);
+    for(int i = 0; i < n; i++) {
+        fprintf(file, "%u ", id[i]);
+    }
+    fprintf(file, "\n");
+
     for(unsigned i=0; i<n; i++){
         Vertex *vertex = graph->vertices[i];
         for(unsigned j=0; j<vertex->adjacent_count; j++){
@@ -71,7 +104,7 @@ void save_graph_as_file(Graph *graph, const char *filename, int *errcode){
             fprintf(file, "%u %u %llu\n", edge->origin->id, edge->target->id, edge->weight);
         }
     }
-    fclose(file);
 
+    fclose(file);
     *errcode = ERR_NONE;
 }

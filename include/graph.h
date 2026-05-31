@@ -68,9 +68,11 @@ void delete_graph(Graph *graph);
 /**
  * @brief Thêm một đỉnh mới vào đồ thị
  * @param[graph] Đồ thị cần thêm điểm
- * @return Con trỏ trỏ đến đỉnh mới, NULL nếu không tạo được
+ * @param[id] Chỉ số của đỉnh cần thêm, gán âm (-1) để tự tạo chỉ số
+ * @return Con trỏ trỏ đến đỉnh mới (hoặc đỉnh cũ nếu đỉnh có chỉ số tương tự đã tồn tại),
+ *         NULL nếu không tạo được
  */
-Vertex *add_vertex(Graph *graph);
+Vertex *add_vertex(Graph *graph, int id);
 
 /**
  * @brief Tìm 1 đỉnh bằng id
