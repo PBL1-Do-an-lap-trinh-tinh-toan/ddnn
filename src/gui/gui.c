@@ -199,38 +199,6 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     snprintf(state->statusBar, sizeof(state->statusBar), "%s", "");
 }
 
-int GUILoadGraphFromFile(GUIState *state, const char *filepath) {
-    int ret_err;
-    Graph *graph = load_graph_from_file(filepath, &ret_err);
-    if(ret_err == ERR_NONE) {
-        GUILoadGraph(state, graph);
-        snprintf(
-            state->statusBar,
-            sizeof(state->statusBar),
-            "%s \"%s\"",
-            "Đã tải file",
-            filepath
-        );
-    }
-
-    return ret_err;
-}
-
-int GUISaveGraphToFile(GUIState *state, const char *filepath) {
-    int ret_err;
-    save_graph_as_file(state->graph, filepath, &ret_err);
-    if(ret_err == ERR_NONE)
-        snprintf(
-            state->statusBar,
-            sizeof(state->statusBar),
-            "%s \"%s\"",
-            "Lưu thành công đồ thị vào file",
-            filepath
-        );
-
-    return ret_err;
-}
-
 void GUIUpdate(GUIState *state) {
     if(state->fileDialogState.SelectFilePressed) {
         if(state->fileDialogState.saveFileMode) {

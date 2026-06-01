@@ -215,7 +215,7 @@ void heap_clear() {
 
 weight_unit_t shortest_path(Graph *graph, Vertex *start, Vertex *end) {
     weight_unit_t *d = (weight_unit_t*)malloc(graph->max_vertex_count*sizeof(weight_unit_t));
-    if(!d) return -1;
+    if(!d) return NO_PATH;
     for(unsigned i = 0; i<graph->max_vertex_count; i++) {
         d[i] = NO_PATH;
     }
