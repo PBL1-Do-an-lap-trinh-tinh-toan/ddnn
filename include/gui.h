@@ -53,6 +53,8 @@ typedef struct {
 } GUIState;
 
 // gui_graph_action.c
+int GUILoadGraphFromFile(GUIState *state, const char *filepath);
+int GUISaveGraphToFile(GUIState *state, const char *filepath);
 bool GUILoadGraph(GUIState *state, Graph *graph);
 void GUIUnloadGraph(GUIState *state);
 void GUIFindShortestPath(GUIState *state);
@@ -78,11 +80,7 @@ void GUIDrawAboutPage(GUIState *state);
 
 // gui.c
 void GUIInit(GUIState *state, const char *appName, const char *fontFile);
-bool GUILoadGraph(GUIState *state, Graph *graph);
-void GUIUnloadGraph(GUIState *state);
 void GUIUpdate(GUIState *state);
-int GUILoadGraphFromFile(GUIState *state, const char *filepath);
-int GUISaveGraphToFile(GUIState *state, const char *filepath);
 void GUIDraw(GUIState *state);
 
 #endif
