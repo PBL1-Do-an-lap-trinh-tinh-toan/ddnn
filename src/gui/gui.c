@@ -157,6 +157,11 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
 
     state->fileDialogState = InitGuiWindowFileDialog(GetWorkingDirectory());
     state->fileDialogState.windowActive = false;
+    state->fileDialogState.saveFileMode = false;
+
+    state->resultFileDialogState = InitGuiWindowFileDialog(GetWorkingDirectory());
+    state->resultFileDialogState.windowActive = false;
+    state->resultFileDialogState.saveFileMode = true;
 
     state->aboutPage = true;
     state->current_mode = MODE_NORMAL;
@@ -181,7 +186,7 @@ void GUIInit(GUIState *state, const char *appName, const char *fontFile) {
     state->physicsEnabled = true;
     state->currentTemperature = INITIAL_TEMPERATURE;
     state->springLength = VERTEX_RADIUS * 3;
-    state->springStiffness = 1.5;
+    state->springStiffness = 0.6;
     state->coulombConstant = 1200000;
 
     state->shortestPathResult = NO_PATH;
@@ -217,7 +222,11 @@ void GUIUpdate(GUIState *state) {
             );
         } else {
             char filepath[512];
-            strcpy(filepath, TextFormat("%s" PATH_SEPERATOR "%s", state->fileDialogState.dirPathText, state->fileDialogState.fileNameText));
+            strcpy(filepath, TextFormat(
+                "%s" PATH_SEPERATOR "%s",
+                state->fileDialogState.dirPathText,
+                state->fileDialogState.fileNameText
+            ));
 
             bool saving = state->fileDialogState.saveFileMode;
 
@@ -269,7 +278,49 @@ void GUIUpdate(GUIState *state) {
         state->fileDialogState.SelectFilePressed = false;
     }
 
-    if(state->fileDialogState.windowActive)
+    if(state->resultFileDialogState.SelectFilePressed && state->resultFileDialogState.saveFileMode) {
+        const char *ext = GetFileExtension(state->resultFileDialogState.fileNameText);
+        if(!ext) {
+            strcat(state->resultFileDialogState.fileNameText, ".txt");
+        }
+
+        if(!IsFileExtension(state->resultFileDialogState.fileNameText, ".txt")) {
+            snprintf(
+                state->statusBar,
+                sizeof(state->statusBar),
+                "%s",
+                "Tên file phải có đuôi .txt"
+            );
+        } else {
+            char filepath[512];
+            strcpy(filepath, TextFormat(
+                "%s" PATH_SEPERATOR "%s",
+                state->resultFileDialogState.dirPathText,
+                state->resultFileDialogState.fileNameText
+            ));
+
+            int err;
+            err = GUISavePathResultToFile(state, filepath);
+
+            switch(err) {
+                case ERR_NONE:
+                    break;
+                case ERR_FILE_OPEN:
+                    snprintf(
+                        state->statusBar,
+                        sizeof(state->statusBar),
+                        "%s",
+                        "Không thể mở file để lưu"
+                    );
+                    state->resultFileDialogState.windowActive = true;
+                    break;
+            }
+        }
+
+        state->resultFileDialogState.SelectFilePressed = false;
+    }
+
+    if(state->fileDialogState.windowActive || state->resultFileDialogState.windowActive)
         return;
 
     if(IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) && !GuiIsLocked()) {
@@ -413,7 +464,7 @@ void GUIDraw(GUIState *state) {
 
     GuiSetFont(state->font);
 
-    if(state->fileDialogState.windowActive) {
+    if(state->fileDialogState.windowActive || state->resultFileDialogState.windowActive) {
         GuiLock();
     }
 
@@ -476,9 +527,12 @@ void GUIDraw(GUIState *state) {
     GUIDrawPathPage(state);
     GUIDrawAboutPage(state);
 
-    if(state->fileDialogState.windowActive) {
+    if(state->fileDialogState.windowActive || state->resultFileDialogState.windowActive) {
         GuiUnlock();
-        GuiWindowFileDialog(&state->fileDialogState);
+        if(state->fileDialogState.windowActive)
+            GuiWindowFileDialog(&state->fileDialogState);
+        else
+            GuiWindowFileDialog(&state->resultFileDialogState);
     }
 
     EndDrawing();

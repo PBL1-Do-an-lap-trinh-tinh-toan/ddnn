@@ -39,6 +39,21 @@ int GUISaveGraphToFile(GUIState *state, const char *filepath) {
     return ret_err;
 }
 
+int GUISavePathResultToFile(GUIState *state, const char *filepath) {
+    int ret_err;
+    save_result_to_file(state->pathStartVertex, state->pathEndVertex, state->shortestPathResult, filepath, &ret_err);
+    if(ret_err == ERR_NONE)
+        snprintf(
+            state->statusBar,
+            sizeof(state->statusBar),
+            "%s \"%s\"",
+            "Lưu thành công kết quả vào file",
+            filepath
+        );
+
+    return ret_err;
+}
+
 bool GUILoadGraph(GUIState *state, Graph *graph) {
     state->graph = graph;
 

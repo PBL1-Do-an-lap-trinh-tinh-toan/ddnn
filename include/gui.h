@@ -24,6 +24,7 @@ typedef struct {
     Camera2D camera;
 
     GuiWindowFileDialogState fileDialogState;
+    GuiWindowFileDialogState resultFileDialogState;
 
     GUIMode current_mode;
 
@@ -55,6 +56,7 @@ typedef struct {
 // gui_graph_action.c
 int GUILoadGraphFromFile(GUIState *state, const char *filepath);
 int GUISaveGraphToFile(GUIState *state, const char *filepath);
+int GUISavePathResultToFile(GUIState *state, const char *filepath);
 bool GUILoadGraph(GUIState *state, Graph *graph);
 void GUIUnloadGraph(GUIState *state);
 void GUIFindShortestPath(GUIState *state);
