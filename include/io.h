@@ -50,4 +50,13 @@ Graph *load_graph_from_file(const char *filename, int *errcode);
  */
 void save_graph_as_file(Graph *graph, const char *filename, int *errcode);
 
+/**
+* @brief Lưu đường đi dưới dạng file văn bản
+* @param[start] Đỉnh bắt đầu đường đi
+* @param[end] Đỉnh kết thúc đường đi
+* @param[filepath] Đường dẫn tới file
+* @param[err] Mã lỗi
+*/
+void save_result_to_file(Vertex *start, Vertex *end, weight_unit_t total_cost, const char *filepath, int *err);
+
 #endif

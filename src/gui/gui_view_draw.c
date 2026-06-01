@@ -507,7 +507,7 @@ static void _DrawPathPage(Vector2 position, GUIState *state) {
     const unsigned BUTTON_WIDTH = 140;
     const unsigned BUTTON_HEIGHT = 30;
 
-    GuiButton(
+    if(GuiButton(
         (Rectangle){
             550 - MARGIN - BUTTON_WIDTH + position.x,
             180 - MARGIN - BUTTON_HEIGHT + position.y,
@@ -515,7 +515,9 @@ static void _DrawPathPage(Vector2 position, GUIState *state) {
             BUTTON_HEIGHT
         },
         "Xuất kết quả"
-    );
+    )) {
+        state->resultFileDialogState.windowActive = true;
+    }
 }
 
 

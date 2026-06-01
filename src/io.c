@@ -1,4 +1,3 @@
-#include "graph.h"
 #include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +55,7 @@ Graph *load_graph_from_file(const char *filename, int *errcode){
             make_edge(graph->vertices[u_idx], graph->vertices[v_idx], w);
         } else {
             if(errcode != NULL){
-                *errcode = ERR_INP_FORMAT; // Or create a new ERR_VERTEX_NOT_FOUND
+                *errcode = ERR_INP_FORMAT;
             }
             delete_graph(graph);
             fclose(file);
@@ -108,3 +107,48 @@ void save_graph_as_file(Graph *graph, const char *filename, int *errcode){
     fclose(file);
     *errcode = ERR_NONE;
 }
+
+void save_result_to_file(Vertex *start, Vertex *end, weight_unit_t total_cost, const char *filepath, int *err) {
+    FILE *file = fopen(filepath, "w");
+
+    if(file == NULL){
+        *err = ERR_FILE_OPEN;
+        return;
+    }
+
+    fprintf(
+        file,
+        "Chi phí tối thiểu để đi từ đỉnh %d đến đỉnh %d là %llu\n",
+        start->id,
+        end->id,
+        total_cost
+    );
+
+    fprintf(file, "Đường đi:\n");
+
+    Vertex *vertStack[128];
+    unsigned stkTop = 0;
+    Vertex *current = end;
+
+    while(current != start) {
+        vertStack[stkTop++] = current;
+        current = current->path_prev; 
+    }
+    vertStack[stkTop++] = start;
+
+    while(stkTop > 0) {
+        Vertex *vert = vertStack[stkTop - 1];
+
+        fprintf(file, "%d", vert->id);
+
+        if(vert != end) {
+            fprintf(file, "->");
+        }
+
+        stkTop--;
+    }
+
+    fclose(file);
+    *err = ERR_NONE;
+}
+
